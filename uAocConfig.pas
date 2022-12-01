@@ -9,6 +9,7 @@ type TAOCConfig = Class
 private
   FBaseUrl: string;
   FBaseFilePath: string;
+  FGithubRepo: string;
 
   function SetupRegistry(AAccess: LongWord): TRegistry;
   function GetSessionCookie: String;
@@ -18,6 +19,7 @@ public
 
   property BaseUrl: String read FBaseUrl;
   property BaseFilePath: string read FBaseFilePath;
+  property GithubRepo: string read FGithubRepo;
   property SessionCookie: string read GetSessionCookie write SetSessionCookie;
 End;
 
@@ -44,6 +46,7 @@ begin
   Ini := TIniFile.Create(Path+PathDelim+'AocConfig.ini');
   try
     FBaseUrl := Ini.ReadString(Config, 'BaseUrl', '');
+    FGithubRepo := Ini.ReadString(Config, 'GithubRepo', 'https://github.com/PanjoNL');
     FBaseFilePath := Path;
   finally
     Ini.Free;

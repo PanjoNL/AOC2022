@@ -115,6 +115,7 @@ begin
   WriteLn('Downloading puzzle data from ' + Url);
 
   HttpClient := THTTPClient.Create;
+
   Headers := nil;
   SessionCookie := Config.SessionCookie;
   if SessionCookie = '' then
@@ -129,7 +130,8 @@ begin
   lHeader := LHeader.Create('cookie', 'session=' + SessionCookie);
   SetLength(Headers, 1);
   Headers[0] := lHeader;
-
+  HttpClient.UserAgent := Config.GithubRepo;
+  
   try
     HttpOutput := HttpClient.Get(Url, nil, Headers);
     WriteLn(HttpOutput.StatusCode);
