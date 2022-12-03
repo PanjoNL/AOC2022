@@ -30,6 +30,17 @@ type
     function SolveB: Variant; override;
   end;
 
+  TAdventOfCodeDay3 = class(TAdventOfCode)
+  private
+    Type SetOfByte = Set of Byte;
+
+    function GetRucksackContent(aContent: string): SetOfByte;
+  protected
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
+
+
 
 //  TAdventOfCodeDay = class(TAdventOfCode)
 //  protected
@@ -116,7 +127,60 @@ begin
   end;
 end;
 {$ENDREGION}
+{$REGION 'TAdventOfCodeDay3'}
 
+function TAdventOfCodeDay3.GetRucksackContent(aContent: string): SetOfByte;
+var
+  c: Char;
+  score: Byte;
+begin
+  Result := [];
+  for c in aContent do
+  begin
+    if LowerCase(c)= c then
+      score := Ord(c) - Ord('a') + 1
+    else
+      score := Ord(c) - Ord('A') + 1 + 26;
+
+    Include(Result, Score);
+  end;
+end;
+
+function TAdventOfCodeDay3.SolveA: Variant;
+var
+  score, ItemCount: Integer;
+  s: String;
+  Left, Right: SetOfByte;
+
+begin
+  Result := 0;
+  for s in FInput do
+  begin
+    ItemCount := Length(s) shr 1;
+
+    Left :=  GetRucksackContent(Copy(s, 0, ItemCount));
+    Right := GetRucksackContent(Copy(s, ItemCount + 1, 2 * ItemCount));
+
+    for score in Left * Right do
+      Inc(Result, Score);
+  end;
+end;
+
+function TAdventOfCodeDay3.SolveB: Variant;
+var
+  i, score: Integer;
+begin
+  Result := 0;
+  i := 0;
+
+  while i < FInput.Count do
+  begin
+    for score in GetRucksackContent(FInput[i]) * GetRucksackContent(FInput[i+1]) * GetRucksackContent(FInput[i+2]) do
+      Inc(Result, Score);
+    inc(i, 3);
+  end;
+end;
+{$ENDREGION}
 
 {$REGION 'TAdventOfCodeDay'}
 //procedure TAdventOfCodeDay.BeforeSolve;
@@ -151,7 +215,7 @@ end;
 initialization
 
 RegisterClasses([
-  TAdventOfCodeDay1, TAdventOfCodeDay2
+  TAdventOfCodeDay1, TAdventOfCodeDay2, TAdventOfCodeDay3
   ]);
 
 end.
