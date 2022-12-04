@@ -46,6 +46,7 @@ function GCD(Number1, Number2: int64): int64;
 function OccurrencesOfChar(const S: string; const C: string): integer;
 function BitStringToInt(Const aBit: string): int64;
 function CountTrueBits(aInt: integer): integer;
+function InRange(const aTarget, aLeft, aRight: int64): boolean;
 
 Const
   MaxInt64: Int64 = 9223372036854775807;
@@ -282,7 +283,11 @@ begin
       inc(Result);
     aInt := aInt shr 1;
   end;
+end;
 
+function InRange(const aTarget, aLeft, aRight: int64): boolean;
+begin
+  Result := (aTarget >= aLeft) and (aTarget <= aRight);
 end;
 
 

@@ -40,6 +40,16 @@ type
     function SolveB: Variant; override;
   end;
 
+  TAdventOfCodeDay4 = class(TAdventOfCode)
+  private
+    type TCheckAssignment = reference to function(const L1, R1, L2, R2: integer): boolean;
+
+    function CheckAssignments(CheckAssignment: TCheckAssignment): integer;
+  protected
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
+
 
 
 //  TAdventOfCodeDay = class(TAdventOfCode)
@@ -128,7 +138,6 @@ begin
 end;
 {$ENDREGION}
 {$REGION 'TAdventOfCodeDay3'}
-
 function TAdventOfCodeDay3.GetRucksackContent(aContent: string): SetOfByte;
 var
   c: Char;
@@ -181,6 +190,42 @@ begin
   end;
 end;
 {$ENDREGION}
+{$REGION 'TAdventOfCodeDay4'}
+function TAdventOfCodeDay4.SolveA: Variant;
+begin
+  Result := CheckAssignments(function(const L1, R1, L2, R2: integer): boolean
+    begin
+      Result := ((L1 >= L2) and (R1 <= R2)) or ((L2 >= L1) and (R2 <= R1))
+    end);
+end;
+
+function TAdventOfCodeDay4.SolveB: Variant;
+begin
+  Result := CheckAssignments(function(const L1, R1, L2, R2: integer): boolean
+    begin
+      Result := InRange(L1, L2, R2) or InRange(R1, L2, R2) or InRange(L2, L1, R1) or InRange(R2, L1, R1)
+    end);
+end;
+
+function TAdventOfCodeDay4.CheckAssignments(CheckAssignment: TCheckAssignment): integer;
+var
+  s: String;
+  Split: TStringDynArray;
+begin
+  Result := 0;
+
+  for s in FInput do
+  begin
+    Split := SplitString(s, '-,');
+
+    if CheckAssignment(Split[0].ToInteger, Split[1].ToInteger, Split[2].ToInteger, Split[3].ToInteger) then
+      Inc(Result);
+  end;
+end;
+{$ENDREGION}
+
+
+
 
 {$REGION 'TAdventOfCodeDay'}
 //procedure TAdventOfCodeDay.BeforeSolve;
@@ -215,7 +260,7 @@ end;
 initialization
 
 RegisterClasses([
-  TAdventOfCodeDay1, TAdventOfCodeDay2, TAdventOfCodeDay3
+  TAdventOfCodeDay1, TAdventOfCodeDay2, TAdventOfCodeDay3, TAdventOfCodeDay4
   ]);
 
 end.
