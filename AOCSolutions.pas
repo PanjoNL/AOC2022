@@ -50,6 +50,18 @@ type
     function SolveB: Variant; override;
   end;
 
+  TAdventOfCodeDay5 = class(TAdventOfCode)
+  private
+    type
+      TShelf = TStack<string>;
+      TWareHouse = TObjectDictionary<integer, TShelf>;
+      TCrateMover = reference to procedure(ShelfFrom, ShelfTo: TShelf; aTotal: integer);
+
+    function MoveCreates(CrateMover: TCrateMover): string;
+  protected
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
 
 
 //  TAdventOfCodeDay = class(TAdventOfCode)
@@ -223,7 +235,83 @@ begin
   end;
 end;
 {$ENDREGION}
+{$REGION 'TAdventOfCodeDay5'}
+function TAdventOfCodeDay5.SolveA: Variant;
+begin
+  Result := MoveCreates(
+    procedure(ShelfFrom, ShelfTo: TShelf; aTotal: integer)
+    begin
+      while aTotal > 0 do
+      begin
+        ShelfTo.Push(ShelfFrom.Pop);
+        Dec(aTotal);
+      end;
+    end);
+end;
 
+function TAdventOfCodeDay5.SolveB: Variant;
+begin
+  Result := MoveCreates(
+    procedure(ShelfFrom, ShelfTo: TShelf; aTotal: integer)
+    var
+      CraneStack: TShelf;
+    begin
+      CraneStack := TShelf.Create;
+      while aTotal > 0 do
+      begin
+        CraneStack.Push(ShelfFrom.Pop);
+        Dec(aTotal);
+      end;
+
+      while CraneStack.Count > 0 do
+        ShelfTo.Push(CraneStack.Pop);
+      CraneStack.Free;
+    end);
+end;
+
+function TAdventOfCodeDay5.MoveCreates(CrateMover: TCrateMover): string;
+var
+  WareHouse: TWareHouse;
+  StackNo, ShelfLevel, StackCount, InstructionStart, i: integer;
+   Split: TStringDynArray;
+begin
+  StackCount := (Length(FInput[0]) + 1) div 4;
+  WareHouse := TWareHouse.Create([doOwnsValues]);
+
+  // Create Shelfs
+  for StackNo := 1 to StackCount do
+    WareHouse.Add(StackNo, TShelf.Create);
+
+  // Find the start of the moving instructions
+  InstructionStart := 0;
+  for i := 0 to FInput.Count -1 do
+    if Trim(FInput[i]) = '' then
+    begin
+      InstructionStart := i + 1;
+      break;
+    end;
+
+  // Read shelfdata from input
+  for ShelfLevel := InstructionStart - 3 downto 0 do
+    for StackNo := 1 to StackCount do
+      if Trim(FInput[ShelfLevel][StackNo*4 -2]) <> '' then
+        WareHouse[StackNo].Push(FInput[ShelfLevel][StackNo*4 -2]);
+
+  // Move crates
+  for i := InstructionStart to FInput.Count -1 do
+  begin
+    Split := SplitString(FInput[i], ' ');
+    CrateMover(WareHouse[Split[3].ToInteger], WareHouse[Split[5].ToInteger], Split[1].ToInteger);
+  end;
+
+  // Determine crate at the top of each shelf
+  Result := '';
+  for StackNo := 1 to StackCount do
+    Result := Result + WareHouse[StackNo].Peek;
+
+  WareHouse.Free;
+end;
+{$ENDREGION}
 
 
 
@@ -260,7 +348,7 @@ end;
 initialization
 
 RegisterClasses([
-  TAdventOfCodeDay1, TAdventOfCodeDay2, TAdventOfCodeDay3, TAdventOfCodeDay4
+  TAdventOfCodeDay1, TAdventOfCodeDay2, TAdventOfCodeDay3, TAdventOfCodeDay4, TAdventOfCodeDay5
   ]);
 
 end.
