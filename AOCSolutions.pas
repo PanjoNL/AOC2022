@@ -333,23 +333,27 @@ end;
 
 function TAdventOfCodeDay6.FindMarkerPosition(const aMarkerLength: integer): integer;
 var
-  MarkerEnd, MarkerBit: Integer;
+  MarkerEnd, MarkerBitNo, SeenBits, BitIndex : Integer;
   TheMessage: String;
-  SeenBits: TDictionary<string, boolean>;
 begin
   Result := 0;
   TheMessage := FInput[0];
-  SeenBits := TDictionary<string, boolean>.Create;
 
   for MarkerEnd := aMarkerLength to Length(TheMessage) do
   begin
-    SeenBits.Clear;
+    SeenBits := 0;
 
-    for MarkerBit := 0 to aMarkerLength-1 do
-      SeenBits.AddOrSetValue(TheMessage[MarkerEnd-MarkerBit], True);
+    for MarkerBitNo := 0 to aMarkerLength -1 do
+    begin
+      BitIndex := Ord(TheMessage[MarkerEnd-MarkerBitNo]) - Ord('a');
+      if (SeenBits shr BitIndex) and 1 = 1 then
+        Break;
 
-    if SeenBits.Count = aMarkerLength then
-      Exit(MarkerEnd);
+      if MarkerBitNo = aMarkerLength -1 then
+        Exit(MarkerEnd);
+
+      SeenBits := SeenBits or 1 shl BitIndex;
+    end;
   end
 end;
 {$ENDREGION}
