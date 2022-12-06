@@ -57,7 +57,15 @@ type
       TWareHouse = TObjectDictionary<integer, TShelf>;
       TCrateMover = reference to procedure(ShelfFrom, ShelfTo: TShelf; aTotal: integer);
 
-    function MoveCreates(CrateMover: TCrateMover): string;
+    function MoveCrates(CrateMover: TCrateMover): string;
+  protected
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
+
+  TAdventOfCodeDay6 = class(TAdventOfCode)
+  private
+    function FindMarkerPosition(Const aMarkerLength: integer): integer;
   protected
     function SolveA: Variant; override;
     function SolveB: Variant; override;
@@ -238,7 +246,7 @@ end;
 {$REGION 'TAdventOfCodeDay5'}
 function TAdventOfCodeDay5.SolveA: Variant;
 begin
-  Result := MoveCreates(
+  Result := MoveCrates(
     procedure(ShelfFrom, ShelfTo: TShelf; aTotal: integer)
     begin
       while aTotal > 0 do
@@ -251,7 +259,7 @@ end;
 
 function TAdventOfCodeDay5.SolveB: Variant;
 begin
-  Result := MoveCreates(
+  Result := MoveCrates(
     procedure(ShelfFrom, ShelfTo: TShelf; aTotal: integer)
     var
       CraneStack: TShelf;
@@ -269,11 +277,11 @@ begin
     end);
 end;
 
-function TAdventOfCodeDay5.MoveCreates(CrateMover: TCrateMover): string;
+function TAdventOfCodeDay5.MoveCrates(CrateMover: TCrateMover): string;
 var
   WareHouse: TWareHouse;
   StackNo, ShelfLevel, StackCount, InstructionStart, i: integer;
-   Split: TStringDynArray;
+  Split: TStringDynArray;
 begin
   StackCount := (Length(FInput[0]) + 1) div 4;
   WareHouse := TWareHouse.Create([doOwnsValues]);
@@ -312,7 +320,39 @@ begin
   WareHouse.Free;
 end;
 {$ENDREGION}
+{$REGION 'TAdventOfCodeDay6'}
+function TAdventOfCodeDay6.SolveA: Variant;
+begin
+  Result := FindMarkerPosition(4);
+end;
 
+function TAdventOfCodeDay6.SolveB: Variant;
+begin
+  Result := FindMarkerPosition(14);
+end;
+
+function TAdventOfCodeDay6.FindMarkerPosition(const aMarkerLength: integer): integer;
+var
+  MarkerEnd, MarkerBit: Integer;
+  TheMessage: String;
+  SeenBits: TDictionary<string, boolean>;
+begin
+  Result := 0;
+  TheMessage := FInput[0];
+  SeenBits := TDictionary<string, boolean>.Create;
+
+  for MarkerEnd := aMarkerLength to Length(TheMessage) do
+  begin
+    SeenBits.Clear;
+
+    for MarkerBit := 0 to aMarkerLength-1 do
+      SeenBits.AddOrSetValue(TheMessage[MarkerEnd-MarkerBit], True);
+
+    if SeenBits.Count = aMarkerLength then
+      Exit(MarkerEnd);
+  end
+end;
+{$ENDREGION}
 
 
 {$REGION 'TAdventOfCodeDay'}
@@ -348,7 +388,7 @@ end;
 initialization
 
 RegisterClasses([
-  TAdventOfCodeDay1, TAdventOfCodeDay2, TAdventOfCodeDay3, TAdventOfCodeDay4, TAdventOfCodeDay5
-  ]);
+  TAdventOfCodeDay1, TAdventOfCodeDay2, TAdventOfCodeDay3, TAdventOfCodeDay4, TAdventOfCodeDay5,
+  TAdventOfCodeDay6]);
 
 end.
