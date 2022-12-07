@@ -71,6 +71,34 @@ type
     function SolveB: Variant; override;
   end;
 
+  TAOCDir = class
+  strict private
+    ChildDirs: TObjectDictionary<string, TAOCDir>;
+    FParent: TAOCDir;
+    FTotalSize: Int64;
+  public
+  constructor Create(aParent: TAOCDir);
+  destructor Destroy; override;
+
+  function GotoDir(const aDirName: string): TAOCDir;
+  function AddDir(aDirName: string): TAOCDir;
+  procedure AddFile(const aFileSize: int64);
+
+  property Parent: TAOCDir read FParent;
+  property TotalSize: Int64 read FTotalSize;
+end;
+
+  TAdventOfCodeDay7 = class(TAdventOfCode)
+  private
+    RootDir: TAOCDir;
+    AllDirs: TList<TAOCDir>;
+  protected
+    procedure BeforeSolve; override;
+    procedure AfterSolve; override;
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
+
 
 //  TAdventOfCodeDay = class(TAdventOfCode)
 //  protected
@@ -357,7 +385,98 @@ begin
   end
 end;
 {$ENDREGION}
+{$REGION 'TAdventOfCodeDay7'}
+{ TAOCDir }
+constructor TAOCDir.Create(aParent: TAOCDir);
+begin
+  FTotalSize := 0;
+  FParent := aParent;
+  ChildDirs := TObjectDictionary<string,TAOCDir>.Create([doOwnsValues]);
+end;
 
+destructor TAOCDir.Destroy;
+begin
+  ChildDirs.Free;
+end;
+
+function TAOCDir.AddDir(aDirName: string): TAOCDir;
+begin
+  Result := TAOCDir.Create(self);
+  ChildDirs.Add(aDirName, Result);
+end;
+
+procedure TAOCDir.AddFile(const aFileSize: int64);
+begin
+  Inc(FTotalSize, aFileSize);
+
+  if Assigned(Parent) then
+    Parent.AddFile(aFileSize);
+end;
+
+function TAOCDir.GotoDir(const aDirName: string): TAOCDir;
+begin
+  Result := ChildDirs[aDirName];
+end;
+
+procedure TAdventOfCodeDay7.BeforeSolve;
+var
+  i: Integer;
+  Split: TStringDynArray;
+  Current: TAOCDir;
+  FileSize: int64;
+begin
+  RootDir := TAOCdir.Create(nil);
+  AllDirs := TList<TAOCDir>.Create();
+
+  Current := RootDir;
+  for i := 1 to FInput.Count -1 do
+  begin
+    split := SplitString(FInput[i], ' ');
+    if split[0].StartsWith('$') and (Split[1] = 'cd') then
+    begin
+      if split[2] = '..' then
+        Current := Current.Parent
+      else
+        Current := Current.GotoDir(split[2]);
+    end
+    else if split[0].StartsWith('dir')then
+      AllDirs.Add(Current.AddDir(split[1]))
+    else if TryStrToInt64(split[0], FileSize)then
+      Current.AddFile(FileSize);
+  end;
+end;
+
+procedure TAdventOfCodeDay7.AfterSolve;
+begin
+  inherited;
+
+  RootDir.Free;
+  AllDirs.Free;
+end;
+
+function TAdventOfCodeDay7.SolveA: Variant;
+var
+  Current: TAOCDir;
+begin
+  Result := 0;
+  for Current in AllDirs do
+    if Current.TotalSize <= 100000 then
+      inc(Result, Current.TotalSize);
+end;
+
+function TAdventOfCodeDay7.SolveB: Variant;
+var
+  Needed: int64;
+  Current: TAOCDir;
+begin
+  Needed := 30000000 - (70000000 - RootDir.TotalSize);
+
+  Result := MaxInt64;
+  for Current in AllDirs do
+    if Current.TotalSize >= Needed then
+      Result := Min(Result, Current.TotalSize);
+end;
+{$ENDREGION}
 
 {$REGION 'TAdventOfCodeDay'}
 //procedure TAdventOfCodeDay.BeforeSolve;
@@ -371,7 +490,6 @@ end;
 //  inherited;
 //
 //end;
-//
 //
 //function TAdventOfCodeDay.SolveA: Variant;
 //var
@@ -388,11 +506,10 @@ end;
 //end;
 {$ENDREGION}
 
-
 initialization
 
 RegisterClasses([
   TAdventOfCodeDay1, TAdventOfCodeDay2, TAdventOfCodeDay3, TAdventOfCodeDay4, TAdventOfCodeDay5,
-  TAdventOfCodeDay6]);
+  TAdventOfCodeDay6, TAdventOfCodeDay7]);
 
 end.
