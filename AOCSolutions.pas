@@ -99,6 +99,17 @@ end;
     function SolveB: Variant; override;
   end;
 
+  TAdventOfCodeDay8 = class(TAdventOfCode)
+  private
+    Trees: array of array of Integer;
+    MaxX, MaxY: integer;
+  protected
+    procedure BeforeSolve; override;
+    procedure AfterSolve; override;
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
+
 
 //  TAdventOfCodeDay = class(TAdventOfCode)
 //  protected
@@ -107,6 +118,10 @@ end;
 //    function SolveA: Variant; override;
 //    function SolveB: Variant; override;
 //  end;
+
+  const
+    DeltaX: Array[0..3] of integer = (1, -1, 0, 0);
+    DeltaY: Array[0..3] of integer = (0, 0, -1, 1);
 
 implementation
 
@@ -477,6 +492,116 @@ begin
       Result := Min(Result, Current.TotalSize);
 end;
 {$ENDREGION}
+{$REGION 'TAdventOfCodeDay8'}
+procedure TAdventOfCodeDay8.BeforeSolve;
+var
+  X, Y: integer;
+begin
+  inherited;
+
+  MaxX := Length(FInput[0])-1;
+  MaxY := FInput.Count -1;
+
+  SetLength(Trees, MaxY);
+  for y := 0 to MaxY do
+  begin
+    SetLength(Trees[Y], MaxX);
+    for X := 0 to MaxX do
+      Trees[Y][X] := StrToInt(FInput[Y][X+1]);
+  end;
+end;
+
+procedure TAdventOfCodeDay8.AfterSolve;
+var
+  y: integer;
+begin
+  inherited;
+
+  for Y := 0 to MaxY do
+    SetLength(Trees[y], 0);
+  SetLength(Trees, 0);
+end;
+
+function TAdventOfCodeDay8.SolveA: Variant;
+var
+  x, y: integer;
+
+  function IsTreeVisible(aX, aY: integer): boolean;
+  var
+    X, Y, i, CurrentHeight: integer;
+  begin
+    for i := 0 to 3 do
+    begin
+      X := aX;
+      y := aY;
+
+      while true do
+      begin
+        inc(X, DeltaX[i]);
+        inc(Y, DeltaY[i]);
+        CurrentHeight := Trees[aY][aX] ;
+
+        Result := not InRange(X, 0, MaxX) or not InRange(Y, 0, MaxY);
+        if Result then
+          Exit;
+
+        if Trees[Y][X] >= CurrentHeight then
+          break;
+      end;
+    end;
+  end;
+
+begin
+  Result := 0;
+  for x := 0 to MaxX do
+    for y := 0 to MaxY do
+      if IsTreeVisible(x, y) then
+        Inc(Result);
+end;
+
+function TAdventOfCodeDay8.SolveB: Variant;
+var
+  i, Score, TreeX, TreeY: Integer;
+
+  function VisibleTrees(TreeHeight, aX, aY, aDX, aDY: integer): Integer;
+  begin
+    Result := 0;
+    Inc(aX, aDX);
+    Inc(aY, aDY);
+
+    while InRange(aX, 0, MaxX) and InRange(aY, 0, MaxY) do
+    begin
+      if Trees[aY][aX] < TreeHeight then
+        inc(Result);
+
+      if Trees[aY][aX] >= TreeHeight then
+      begin
+        Inc(Result);
+        Exit;;
+      end;
+
+      Inc(aX, aDX);
+      Inc(aY, aDY);
+    end;
+  end;
+
+begin
+  Result := 0;
+  for TreeX := 0 to MaxX do
+    for TreeY := 0 to MaxY do
+    begin
+      Score := 1;
+      for i := 0 to 3 do
+        Score := Score * VisibleTrees(Trees[TreeY][TreeX], TreeX, TreeY, DeltaX[i], DeltaY[i]);
+
+      Result := Max(Result, Score);
+    end;
+end;
+
+
+{$ENDREGION}
+
+
 
 {$REGION 'TAdventOfCodeDay'}
 //procedure TAdventOfCodeDay.BeforeSolve;
@@ -510,6 +635,6 @@ initialization
 
 RegisterClasses([
   TAdventOfCodeDay1, TAdventOfCodeDay2, TAdventOfCodeDay3, TAdventOfCodeDay4, TAdventOfCodeDay5,
-  TAdventOfCodeDay6, TAdventOfCodeDay7]);
+  TAdventOfCodeDay6, TAdventOfCodeDay7, TAdventOfCodeDay8]);
 
 end.
