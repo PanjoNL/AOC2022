@@ -110,6 +110,13 @@ end;
     function SolveB: Variant; override;
   end;
 
+  TAdventOfCodeDay9 = class(TAdventOfCode)
+  private
+    function MoveRope(aKnotCount: integer): Integer;
+  protected
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
 
 //  TAdventOfCodeDay = class(TAdventOfCode)
 //  protected
@@ -597,8 +604,84 @@ begin
       Result := Max(Result, Score);
     end;
 end;
+{$ENDREGION}
+{$REGION 'TAdventOfCodeDay9'}
+function TAdventOfCodeDay9.SolveA: Variant;
+begin
+  Result := MoveRope(1);
+end;
 
+function TAdventOfCodeDay9.SolveB: Variant;
+begin
+  Result := MoveRope(9);
+end;
 
+const Directions: array[0..3] of TPoint =
+(
+  (X: 0; Y: 1),  // Up
+  (X: 0; Y: -1), // Down
+  (X: -1; Y: 0), // Left
+  (X: 1; Y: 0)   // Right
+);
+
+function TAdventOfCodeDay9.MoveRope(aKnotCount: integer): Integer;
+var
+  i, tailNo, Step: Integer;
+  Split: TStringDynArray;
+  Visited: TDictionary<TPoint, Boolean>;
+  Tails: TDictionary<Integer, TPoint>;
+  Head, Tail, tmpHead, Direction: TPoint;
+  MoveX, MoveY: Boolean;
+begin
+  Visited := TDictionary<TPoint, Boolean>.Create;
+  Tails := TDictionary<Integer, TPoint>.Create;
+
+  Head := TPoint.Zero;
+  for i := 1 to aKnotCount do
+    Tails.Add(i, TPoint.Zero);
+
+  for i := 0 to FInput.Count -1 do
+  begin
+    // Determine direction of the head
+    Split := SplitString(FInput[i], ' ');
+    Direction := Directions[IndexStr(split[0], ['U','D','L', 'R'])];
+
+    for Step := 0 to StrToInt(Split[1])-1 do
+    begin
+      Head.Offset(Direction);
+
+      for TaiLNo := 1 to aKnotCount do
+      begin
+        Tail := Tails[tailNo];
+        tmpHead := Head;
+        if tailNo > 1 then
+          tmpHead := Tails[tailNo-1];
+
+        // Check horizontal/vertical
+        MoveX := (abs(tmpHead.X-Tail.X) = 2);
+        MoveY := (abs(tmpHead.Y-Tail.Y) = 2);
+
+        // Check diagonal
+        MoveX := MoveX or (MoveY and (tmpHead.X <> Tail.X));
+        MoveY := MoveY or (MoveX and (tmpHead.Y <> Tail.Y));
+
+        if MoveX then
+          Tail.X := Tail.X + Sign(tmpHead.X-Tail.X);
+        if MoveY then
+          Tail.Y := Tail.Y + Sign(tmpHead.Y-Tail.Y);
+
+        Tails.AddOrSetValue(TailNo, Tail);
+
+        if (TaiLNo = aKnotCount) then
+          Visited.AddOrSetValue(Tail, True);
+      end;
+    end;
+  end;
+
+  Result := Visited.Count;
+  Visited.Free;
+  Tails.Free;
+end;
 {$ENDREGION}
 
 
@@ -635,6 +718,6 @@ initialization
 
 RegisterClasses([
   TAdventOfCodeDay1, TAdventOfCodeDay2, TAdventOfCodeDay3, TAdventOfCodeDay4, TAdventOfCodeDay5,
-  TAdventOfCodeDay6, TAdventOfCodeDay7, TAdventOfCodeDay8]);
+  TAdventOfCodeDay6, TAdventOfCodeDay7, TAdventOfCodeDay8, TAdventOfCodeDay9]);
 
 end.
