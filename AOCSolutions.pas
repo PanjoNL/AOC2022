@@ -616,29 +616,27 @@ begin
   Result := MoveRope(9);
 end;
 
-const Directions: array[0..3] of TPoint =
-(
+const Directions: array[0..3] of TPoint = (
   (X: 0; Y: 1),  // Up
   (X: 0; Y: -1), // Down
   (X: -1; Y: 0), // Left
-  (X: 1; Y: 0)   // Right
-);
+  (X: 1; Y: 0)); // Right
 
 function TAdventOfCodeDay9.MoveRope(aKnotCount: integer): Integer;
 var
   i, tailNo, Step: Integer;
   Split: TStringDynArray;
   Visited: TDictionary<TPoint, Boolean>;
-  Tails: TDictionary<Integer, TPoint>;
+  Tails: Array of TPoint;
   Head, Tail, tmpHead, Direction: TPoint;
   MoveX, MoveY: Boolean;
 begin
   Visited := TDictionary<TPoint, Boolean>.Create;
-  Tails := TDictionary<Integer, TPoint>.Create;
+  SetLength(Tails, aKnotCount);
 
   Head := TPoint.Zero;
-  for i := 1 to aKnotCount do
-    Tails.Add(i, TPoint.Zero);
+  for i := 0 to aKnotCount-1 do
+    Tails[i] := TPoint.Zero;
 
   for i := 0 to FInput.Count -1 do
   begin
@@ -650,11 +648,11 @@ begin
     begin
       Head.Offset(Direction);
 
-      for TaiLNo := 1 to aKnotCount do
+      for TaiLNo := 0 to aKnotCount-1 do
       begin
         Tail := Tails[tailNo];
         tmpHead := Head;
-        if tailNo > 1 then
+        if tailNo > 0 then
           tmpHead := Tails[tailNo-1];
 
         // Check horizontal/vertical
@@ -670,17 +668,18 @@ begin
         if MoveY then
           Tail.Y := Tail.Y + Sign(tmpHead.Y-Tail.Y);
 
-        Tails.AddOrSetValue(TailNo, Tail);
-
-        if (TaiLNo = aKnotCount) then
+        Tails[tailNo] := Tail;
+        if (TaiLNo = aKnotCount-1) then
           Visited.AddOrSetValue(Tail, True);
+
+        if not (MoveX or MoveY) then
+          Break;
       end;
     end;
   end;
 
   Result := Visited.Count;
   Visited.Free;
-  Tails.Free;
 end;
 {$ENDREGION}
 
