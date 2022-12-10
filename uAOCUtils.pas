@@ -15,6 +15,7 @@ type AOCUtils = class
     class function DayIndexFromClassName(Const aClassName: String): String;
     class procedure DoAdventOfCode(aAdventOfCodeRef: TAdventOfCodeRef; aConfig: TAOCConfig);
     class procedure DownLoadPuzzleInput(var InputList: TStrings; Const DayIndex: String; Config: TAOCConfig);
+    class function GetAocIniFilePath(Const aIniName: string): string;
 end;
 
 type TAOCDictionary<TKey,TValue> = class(TDictionary<TKey,TValue>)
@@ -85,6 +86,17 @@ begin
                 StrToInt(AOCUtils.DayIndexFromClassName(Right.ClassName));
     end;
   Result.Sort(TComparer<TAdventOfCodeRef>.Construct(Comparison));
+end;
+
+class function AOCUtils.GetAocIniFilePath(const aIniName: string): string;
+begin
+  Result := ParamStr(0);
+  while (Not FileExists(Result+PathDelim+aIniName)) do
+  begin
+    Result := ExtractFileDir(Result);
+    if Result = '' then
+      Break;
+  end;
 end;
 
 class function AOCUtils.DayIndexFromClassName(Const aClassName: String): String;

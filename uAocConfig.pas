@@ -27,7 +27,7 @@ End;
 implementation
 
 uses
-  inifiles, System.SysUtils, winapi.Windows;
+  inifiles, System.SysUtils, winapi.Windows, uAOCUtils;
 
 
 constructor TAOCConfig.Create;
@@ -35,14 +35,7 @@ const Config: string = 'Config';
 var Ini: TIniFile;
     Path: string;
 begin
-  Path := ParamStr(0);
-  while (Not FileExists(Path+PathDelim+'AocConfig.ini')) do
-  begin
-    Path := ExtractFileDir(Path);
-    if path = '' then
-      Break;
-  end;
-
+  Path := AOCUtils.GetAocIniFilePath('AocConfig.ini');
   Ini := TIniFile.Create(Path+PathDelim+'AocConfig.ini');
   try
     FBaseUrl := Ini.ReadString(Config, 'BaseUrl', '');

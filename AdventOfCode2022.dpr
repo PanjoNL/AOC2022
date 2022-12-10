@@ -9,7 +9,8 @@ uses
   uAOCTests in 'uAOCTests.pas',
   uAocConfig in 'uAocConfig.pas',
   PriorityQueues in 'PriorityQueue\PriorityQueues.pas',
-  PriorityQueues.Detail in 'PriorityQueue\PriorityQueues.Detail.pas';
+  PriorityQueues.Detail in 'PriorityQueue\PriorityQueues.Detail.pas',
+  AOCLetterReader in 'AOCLetterReader.pas';
 
 begin
   Application.Initialize;

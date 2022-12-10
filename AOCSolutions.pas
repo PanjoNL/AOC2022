@@ -8,7 +8,8 @@ uses
   Generics.Defaults, System.Generics.Collections,
   System.Diagnostics, AOCBase, RegularExpressions, System.DateUtils,
   System.StrUtils,
-  System.Math, uAOCUtils, System.Types, PriorityQueues, System.Json;
+  System.Math, uAOCUtils, System.Types, PriorityQueues, System.Json,
+  AocLetterReader;
 
 type
   TAdventOfCodeDay1 = class(TAdventOfCode)
@@ -733,23 +734,18 @@ end;
 
 function TAdventOfCodeDay10.SolveB: Variant;
 var
-  RegisterX, Row, Column: Integer;
-  s: String;
+  Reader: TAOCLetterReader_5_6;
 begin
-  for row := 0 to 5 do
-  begin
-    s := '';
-    for column := 1 to 40 do
+  Reader := TAOCLetterReader_5_6.Create;
+  Result := Reader.ReadLetters(8,
+    function(const aRowNo, aColumnNo: integer): boolean
+    var
+      RegisterX: Integer;
     begin
-      RegisterX := Memory[row * 40 + Column];
-      if (column-2 = RegisterX) or (column = RegisterX) or (column-1 = RegisterX) then
-        s := s + '#'
-      else
-        s := s + '.';
-    end;
-
-    writeLn(s);
-  end;
+      RegisterX := Memory[aRowNo * 40 + aColumnNo + 1];
+      Result := Abs(aColumnNo-RegisterX) <= 1;
+    end);
+    Reader.Free;
 end;
 {$ENDREGION}
 
