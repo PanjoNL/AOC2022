@@ -118,6 +118,15 @@ end;
     function SolveB: Variant; override;
   end;
 
+  TAdventOfCodeDay10 = class(TAdventOfCode)
+  private
+    Memory: Array[1..240] of integer;
+  protected
+    procedure BeforeSolve; override;
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
+
 //  TAdventOfCodeDay = class(TAdventOfCode)
 //  protected
 //    procedure BeforeSolve; override;
@@ -682,7 +691,67 @@ begin
   Visited.Free;
 end;
 {$ENDREGION}
+{$REGION 'TAdventOfCodeDay10'}
+procedure TAdventOfCodeDay10.BeforeSolve;
+var
+  Cycle, RegisterX, CurrentInstructionIndex: Integer;
+  Split: TStringDynArray;
+begin
+  inherited;
 
+  RegisterX := 1;
+  Cycle := 0;
+  CurrentInstructionIndex := 0;
+
+  while Cycle < 240 do
+  begin
+    Inc(Cycle);
+    Memory[Cycle] := RegisterX;
+
+    Split := SplitString(FINput[CurrentInstructionIndex], ' ');
+    inc(CurrentInstructionIndex);
+    if Split[0] = 'addx' then
+    begin
+      Inc(Cycle);
+      Memory[Cycle] := RegisterX;
+      Inc(RegisterX, Split[1].ToInteger);
+    end;
+  end;
+end;
+
+function TAdventOfCodeDay10.SolveA: Variant;
+var
+  Cycle, i: Integer;
+begin
+  result := 0;
+  for i := 0 to 5 do
+  begin
+    Cycle := 20 + 40 * i;
+    Result := Result + Cycle * Memory[Cycle];
+  end;
+end;
+
+function TAdventOfCodeDay10.SolveB: Variant;
+var
+  RegisterX, Row, Column: Integer;
+  s: String;
+begin
+  for row := 0 to 5 do
+  begin
+    s := '';
+    for column := 1 to 40 do
+    begin
+      RegisterX := Memory[row * 40 + Column];
+      if (column-2 = RegisterX) or (column = RegisterX) or (column-1 = RegisterX) then
+        s := s + '#'
+      else
+        s := s + '.';
+    end;
+
+    writeLn(s);
+  end;
+end;
+{$ENDREGION}
 
 
 {$REGION 'TAdventOfCodeDay'}
@@ -717,6 +786,6 @@ initialization
 
 RegisterClasses([
   TAdventOfCodeDay1, TAdventOfCodeDay2, TAdventOfCodeDay3, TAdventOfCodeDay4, TAdventOfCodeDay5,
-  TAdventOfCodeDay6, TAdventOfCodeDay7, TAdventOfCodeDay8, TAdventOfCodeDay9]);
+  TAdventOfCodeDay6, TAdventOfCodeDay7, TAdventOfCodeDay8, TAdventOfCodeDay9, TAdventOfCodeDay10]);
 
 end.
