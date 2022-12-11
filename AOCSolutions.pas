@@ -128,6 +128,15 @@ end;
     function SolveB: Variant; override;
   end;
 
+  TAdventOfCodeDay11 = class(TAdventOfCode)
+  private
+    function ChaseMonkeys(PartB: boolean): int64;
+  protected
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
+
+
 //  TAdventOfCodeDay = class(TAdventOfCode)
 //  protected
 //    procedure BeforeSolve; override;
@@ -748,7 +757,168 @@ begin
     Reader.Free;
 end;
 {$ENDREGION}
+{$REGION 'TAdventOfCodeDay11'}
+type
+  TMonkeyOperation = (Add, Multiply);
+  TMonkeyOperationPart = (Constant, OldValue);
+  TMonkey = class
+  strict private
+    Items: TList<int64>;
 
+    Operation: TMonkeyOperation;
+    OperationPart: TMonkeyOperationPart;
+    OperationConstant: int64;
+
+    FId, FIdTrueMonkey, FIdFalseMonkey: Integer;
+    FDivisor, FItemsInspected: Int64;
+  public
+    Constructor CreateFromStrings(aStrings: TStrings; aOffset: Integer);
+    Destructor Destroy; override;
+
+    procedure InspectItems(MonkeyTrue, MonkeyFalse: TMonkey; PartB: boolean; lcm: int64);
+    procedure AddItem(const aItem: int64);
+
+    property Id: integer read FId;
+    property IdTrueMonkey: integer read FIdTrueMonkey;
+    property IdFalseMonkey: integer read FIdFalseMonkey;
+    property Divisor: Int64 read FDivisor;
+    property ItemsInspected: Int64 Read FItemsInspected;
+end;
+
+constructor TMonkey.CreateFromStrings(aStrings: TStrings; aOffset: Integer);
+var
+  Split: TStringDynArray;
+  i: integer;
+begin
+  // Init
+  items := TList<int64>.Create;
+  FItemsInspected := 0;
+
+  // Id
+  Split := SplitString(aStrings[aOffset], ':');
+  Split := SplitString(Split[0], ' ');
+  FId := StrToInt(Split[1]);
+
+  // Items
+  Split := SplitString(aStrings[aOffset+1], ':');
+  Split := SplitString(Split[1], ',');
+  for i := 0 to Length(Split)-1 do
+    items.Add(StrToInt64(split[i]));
+
+  // Operation
+  Split := SplitString(trim(aStrings[aOffset+2]), ' ');
+  Operation := Add;
+  if Split[4] = '*' then
+    Operation := Multiply;
+
+  OperationPart := OldValue;
+  if TryStrToInt64(Split[5], OperationConstant) then
+    OperationPart := Constant;
+
+  // Test
+  Split := SplitString(trim(aStrings[aOffset+3]), ' ');
+  FDivisor := StrToInt64(Split[3]);
+
+  // If true
+  Split := SplitString(trim(aStrings[aOffset+4]), ' ');
+  FIdTrueMonkey := StrToInt(Split[5]);
+
+  // If false
+  Split := SplitString(trim(aStrings[aOffset+5]), ' ');
+  FIdFalseMonkey := StrToInt(Split[5]);
+end;
+
+destructor TMonkey.Destroy;
+begin
+  Items.Free;
+  inherited;
+end;
+
+procedure TMonkey.AddItem(const aItem: int64);
+begin
+  Items.Add(aItem);
+end;
+
+procedure TMonkey.InspectItems(MonkeyTrue, MonkeyFalse: TMonkey; PartB: boolean; lcm: int64);
+var
+  Item, OperationValue: Int64;
+begin
+  Inc(FItemsInspected, Items.Count);
+
+  while items.Count > 0 do
+  begin
+    Item := items.ExtractAt(0);
+    OperationValue := Item;
+    if OperationPart = Constant then
+      OperationValue := OperationConstant;
+
+    case Operation of
+      Add: Item := Item + OperationValue;
+      Multiply: Item := Item * OperationValue;
+    end;
+
+    if PartB then
+      item := Item mod lcm
+    else
+      Item := trunc(Item / 3);
+
+    if Item mod Divisor = 0  then
+      MonkeyTrue.AddItem(Item)
+    else
+      MonkeyFalse.AddItem(Item);
+  end;
+end;
+
+function TAdventOfCodeDay11.SolveA: Variant;
+begin
+  Result := ChaseMonkeys(False);
+end;
+
+function TAdventOfCodeDay11.SolveB: Variant;
+begin
+  Result := ChaseMonkeys(True);
+end;
+
+function TAdventOfCodeDay11.ChaseMonkeys(PartB: boolean): int64;
+var
+  MonkeyCount, MonkeyIndex, Round: Integer;
+  Lcm, Max1, Max2: Int64;
+  Monkey: TMonkey;
+  Monkeys: Array of TMonkey;
+begin
+  MonkeyCount := (FInput.Count+1) div 7;
+
+  SetLength(Monkeys, MonkeyCount);
+  Lcm := 1;
+  for MonkeyIndex := 0 to MonkeyCount-1 do
+  begin
+    Monkey := TMonkey.CreateFromStrings(FInput, MonkeyIndex*7);
+    Lcm := Lcm * Monkey.Divisor;
+    Monkeys[Monkey.Id] := Monkey;
+  end;
+
+  for round := 1 to IfThen(PartB, 10000, 20) do
+    for MonkeyIndex := 0 to MonkeyCount -1 do
+    begin
+      Monkey := Monkeys[MonkeyIndex];
+      Monkey.InspectItems(Monkeys[Monkey.IdTrueMonkey], Monkeys[Monkey.IdFalseMonkey], PartB, lcm);
+    end;
+
+  Max1 := 0;
+  for MonkeyIndex := 0 to MonkeyCount -1 do
+    Max1 := Max(Monkeys[MonkeyIndex].ItemsInspected, Max1);
+
+  Max2 := 0;
+  for MonkeyIndex := 0 to MonkeyCount -1 do
+    if Monkeys[MonkeyIndex].ItemsInspected <> Max1 then
+    Max2 := Max(Monkeys[MonkeyIndex].ItemsInspected, Max2);
+
+  Result := Max1 * Max2;
+
+  for MonkeyIndex := 0 to MonkeyCount -1 do
+    Monkeys[MonkeyIndex].Free;
+end;
+{$ENDREGION}
 
 {$REGION 'TAdventOfCodeDay'}
 //procedure TAdventOfCodeDay.BeforeSolve;
@@ -782,6 +952,7 @@ initialization
 
 RegisterClasses([
   TAdventOfCodeDay1, TAdventOfCodeDay2, TAdventOfCodeDay3, TAdventOfCodeDay4, TAdventOfCodeDay5,
-  TAdventOfCodeDay6, TAdventOfCodeDay7, TAdventOfCodeDay8, TAdventOfCodeDay9, TAdventOfCodeDay10]);
+  TAdventOfCodeDay6, TAdventOfCodeDay7, TAdventOfCodeDay8, TAdventOfCodeDay9, TAdventOfCodeDay10,
+  TAdventOfCodeDay11]);
 
 end.
