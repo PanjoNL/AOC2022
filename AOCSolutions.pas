@@ -136,6 +136,22 @@ end;
     function SolveB: Variant; override;
   end;
 
+  TBitGrid = array of array of boolean;
+  TAdventOfCodeDay12 = class(TAdventOfCode)
+  private
+    MaxX, MaxY: Integer;
+    Heights: array of array of Integer;
+    PointS, PointE: TPoint;
+    Points_a: TBitGrid;
+
+    function FindPath(aFrom: TPoint; aTo: TBitGrid; IsUphill: boolean): Integer;
+    function BlankBitGrid: TBitGrid;
+  protected
+    procedure BeforeSolve; override;
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
+
 
 //  TAdventOfCodeDay = class(TAdventOfCode)
 //  protected
@@ -919,6 +935,136 @@ begin
     Monkeys[MonkeyIndex].Free;
 end;
 {$ENDREGION}
+{$REGION 'TAdventOfCodeDay12'}
+procedure TAdventOfCodeDay12.BeforeSolve;
+var
+  c: Char;
+  x,y: integer;
+  point: TPoint;
+begin
+  inherited;
+
+  MaxX := Length(FInput[0]) - 1;
+  MaxY := FInput.Count - 1;
+  Points_a := BlankBitGrid;
+
+  SetLength(Heights, MaxX+1);
+  for x := 0 to MaxX do
+    SetLength(Heights[x], MaxY +1);
+
+  for y := 0 to MaxY  do
+    for x := 0 to MaxX do
+    begin
+      c := FInput[y][x+1];
+      point := TPoint.Create(x, y);
+      if c = 'S' then
+      begin
+        c := 'a';
+        PointS := point;
+      end
+      else if c = 'E' then
+      begin
+        c := 'z';
+        PointE := point;
+      end;
+
+      Points_a[x][y] := c = 'a';
+      Heights[x][y] := ord(c) - Ord('a');
+    end;
+end;
+
+function TAdventOfCodeDay12.BlankBitGrid: TBitGrid;
+var
+  x,y: integer;
+begin
+  SetLength(Result, MaxX+1);
+  for x := 0 to MaxX do
+  begin
+    SetLength(Result[x], MaxY +1);
+    for y := 0 to MaxY do
+      Result[x][y] := False;
+  end
+end;
+
+type rWork = record
+  Steps: integer;
+  point: TPoint;
+end;
+
+function TAdventOfCodeDay12.SolveA: Variant;
+var
+  Targets: TBitGrid;
+begin
+  Targets := BlankBitGrid;
+  Targets[PointE.x][PointE.y] := true;
+  Result := FindPath(PointS, Targets, True);
+end;
+
+function TAdventOfCodeDay12.SolveB: Variant;
+begin
+  Result := FindPath(PointE, Points_a, False);
+end;
+
+function TAdventOfCodeDay12.FindPath(aFrom: TPoint; aTo: TBitGrid; IsUphill: boolean): Integer;
+var
+  CurrHeight, TargetHeight, i: Integer;
+  Work, NewWork: rWork;
+  Seen: TBitGrid;
+  Comparer: IComparer<rWork>;
+  Queue: PriorityQueue<rWork>;
+  CanReach: Boolean;
+begin
+  Result := -1;
+  Comparer := TComparer<rWork>.Construct(
+    function(const Left, Right: rWork): integer
+    begin
+      Result := Sign(Left.Steps - Right.Steps);
+    end);
+
+  Queue := PriorityQueue<rWork>.Create(Comparer, Comparer);
+  Seen := BlankBitGrid;
+
+  Work.Steps := 0;
+  Work.point := aFrom;
+  Queue.Enqueue(Work);
+
+  while Queue.Count > 0 do
+  begin
+    work := Queue.Dequeue;
+
+    if aTo[work.point.x][work.point.y] then
+      exit(work.Steps);
+
+    if Seen[work.point.x][work.point.y] then
+      continue;
+    Seen[work.point.x][work.point.y] := True;
+
+    CurrHeight := Heights[Work.point.x][Work.point.y];
+
+    for i := 0 to 3 do
+    begin
+      NewWork := Work;
+      NewWork.Steps := Work.Steps + 1;
+      NewWork.point.Offset(DeltaX[i], DeltaY[i]);
+
+      if (InRange(NewWork.point.x, 0, MaxX) and InRange(NewWork.point.y, 0, MaxY))  then
+      begin
+        TargetHeight := Heights[NewWork.point.X, NewWork.point.Y];
+
+        if IsUphill then
+          CanReach := TargetHeight <= CurrHeight + 1
+        else
+          CanReach := CurrHeight <= TargetHeight + 1;
+
+        if CanReach then
+          Queue.Enqueue(NewWork);
+      end;
+    end;
+  end;
+end;
+
+{$ENDREGION}
+
 
 {$REGION 'TAdventOfCodeDay'}
 //procedure TAdventOfCodeDay.BeforeSolve;
@@ -953,6 +1099,6 @@ initialization
 RegisterClasses([
   TAdventOfCodeDay1, TAdventOfCodeDay2, TAdventOfCodeDay3, TAdventOfCodeDay4, TAdventOfCodeDay5,
   TAdventOfCodeDay6, TAdventOfCodeDay7, TAdventOfCodeDay8, TAdventOfCodeDay9, TAdventOfCodeDay10,
-  TAdventOfCodeDay11]);
+  TAdventOfCodeDay11,TAdventOfCodeDay12]);
 
 end.
