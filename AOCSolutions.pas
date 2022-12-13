@@ -152,6 +152,21 @@ end;
     function SolveB: Variant; override;
   end;
 
+  TPacketComparer = class(TInterfacedObject, IComparer<TJsonValue>)
+    function Compare(const Left, Right: TJsonValue): Integer;
+  end;
+
+  TAdventOfCodeDay13 = class(TAdventOfCode)
+  private
+    PacketComparer: TPacketComparer;
+  protected
+    procedure BeforeSolve; override;
+    procedure AfterSolve; override;
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
+
+
 
 //  TAdventOfCodeDay = class(TAdventOfCode)
 //  protected
@@ -1064,7 +1079,111 @@ begin
 end;
 
 {$ENDREGION}
+{$REGION 'TAdventOfCodeDay13'}
+function TPacketComparer.Compare(const Left, Right: TJsonValue): Integer;
 
+  function _ToArray(aValue: TJsonValue): TJSONArray;
+  begin
+    if (aValue is TJSONArray) then
+      Result := TJSONArray(aValue)
+    else
+      Result := TJSONArray.Create.Add(TJSONNumber(aValue).AsInt);
+  end;
+
+var
+  i: Integer;
+  arrayLeft, arrayRight: TJSONArray;
+begin
+  if (Left is TJSONNumber) and (Right is TJSONNumber) then
+    Exit(Sign(TJSONNumber(Left).AsInt - TJSONNumber(Right).AsInt));
+
+  arrayLeft := _ToArray(Left);
+  arrayRight := _ToArray(Right);
+  try
+    for i := 0 to Min(arrayLeft.Count, arrayRight.Count)-1 do
+    begin
+      Result := Compare(arrayLeft.Items[i], arrayRight.Items[i]);
+      if Result <> 0 then
+        Exit;
+    end;
+
+    Result := Sign(arrayLeft.Count - arrayRight.Count);
+  finally
+    if Left is TJsonNumber then
+      arrayLeft.Free;
+    if Right is TJsonNumber then
+      arrayRight.Free;
+  end;
+end;
+
+procedure TAdventOfCodeDay13.BeforeSolve;
+begin
+  inherited;
+  PacketComparer := TPacketComparer.Create;;
+end;
+
+procedure TAdventOfCodeDay13.AfterSolve;
+begin
+  PacketComparer.Free;
+  inherited;
+end;
+
+function TAdventOfCodeDay13.SolveA: Variant;
+var
+  i, index: Integer;
+  Left, Right: TJSONValue;
+begin
+  Result := 0;
+
+  i := 0;
+  index := 1;
+  while i < FInput.Count-1 do
+  begin
+    Left := TJSONObject.ParseJSONValue(FInput[i]);
+    Right := TJSONObject.ParseJSONValue(FInput[i+1]);
+
+    if PacketComparer.Compare(Left, Right) < 0 then
+      Inc(Result, Index);
+
+    Left.Free;
+    Right.Free;
+
+    inc(index);
+    Inc(i, 3);
+  end;
+end;
+
+function TAdventOfCodeDay13.SolveB: Variant;
+var
+  i: Integer;
+  s: String;
+  Values: TObjectList<TJSONValue>;
+begin
+  Values := TObjectList<TJSONValue>.Create(True);
+
+  for s in FInput do
+    if s <> '' then
+      Values.Add(TJSONObject.ParseJSONValue(s));
+
+  Values.Add(TJSONObject.ParseJSONValue('[[2]]'));
+  Values.Add(TJSONObject.ParseJSONValue('[[6]]'));
+
+  Values.Sort(PacketComparer);
+
+  Result := 1;
+  for i := 0 to Values.Count -1 do
+  begin
+    s := Values[i].ToJSON;
+    if (s = '[[2]]') or (s = '[[6]]') then
+      Result := Result * (i+1);
+  end;
+  Values.Free;
+end;
+
+
+
+
+{$ENDREGION}
 
 {$REGION 'TAdventOfCodeDay'}
 //procedure TAdventOfCodeDay.BeforeSolve;
@@ -1099,6 +1218,6 @@ initialization
 RegisterClasses([
   TAdventOfCodeDay1, TAdventOfCodeDay2, TAdventOfCodeDay3, TAdventOfCodeDay4, TAdventOfCodeDay5,
   TAdventOfCodeDay6, TAdventOfCodeDay7, TAdventOfCodeDay8, TAdventOfCodeDay9, TAdventOfCodeDay10,
-  TAdventOfCodeDay11,TAdventOfCodeDay12]);
+  TAdventOfCodeDay11,TAdventOfCodeDay12,TAdventOfCodeDay13]);
 
 end.
