@@ -166,6 +166,14 @@ end;
     function SolveB: Variant; override;
   end;
 
+  TAdventOfCodeDay14 = class(TAdventOfCode)
+  private
+    function FillCave(PartB: Boolean): integer;
+  protected
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
+
 
 
 //  TAdventOfCodeDay = class(TAdventOfCode)
@@ -1179,11 +1187,106 @@ begin
   end;
   Values.Free;
 end;
-
-
-
-
 {$ENDREGION}
+{$REGION 'TAdventOfCodeDay14'}
+function TAdventOfCodeDay14.SolveA: Variant;
+begin
+  Result := FillCave(false);
+end;
+
+function TAdventOfCodeDay14.SolveB: Variant;
+begin
+  Result := FillCave(True);
+end;
+
+function TAdventOfCodeDay14.FillCave(PartB: Boolean): integer;
+const
+  DeltaX: array[0..2] of integer = (0, -1, 1);
+var
+  i: Integer;
+  s: String;
+  Split: TStringDynArray;
+  Grid: Array[0..1000] of Array[0..1000] of Boolean;
+  x, xFrom, xTo, y, yFrom, yTo, MaxY, SandX, SandY, WallCount : Integer;
+  CanMoveDown: Boolean;
+
+  function _countBlocked: integer;
+  var
+    x, y: Integer;
+  begin
+    Result := 0;
+    for x := 0 to 1000 do
+      for y := 0 to MaxY + 1 do
+        if Grid[x][y] then
+          Inc(Result);
+  end;
+
+begin
+  for x := 0 to 1000 do
+    for y := 0 to 1000 do
+      Grid[x][y] := False;
+
+  MaxY := 0;
+  for s in FInput do
+  begin
+    Split := SplitString(StringReplace(s, ' -> ', ',', [rfReplaceAll]), ',');
+
+    xFrom := split[0].ToInteger();
+    yFrom := split[1].ToInteger();
+
+    i := 2;
+    while i < Length(Split)-1 do
+    begin
+      xTo := split[i].ToInteger();
+      yTo := split[i + 1].ToInteger();
+
+      MaxY := Max(MaxY, yTo);
+      MaxY := Max(MaxY, yFrom);
+      for x := Min(xFrom, xTo) to Max(xFrom, xTo) do
+        for y := Min(yFrom, yTo) to Max(yFrom, yTo) do
+          Grid[x][y] := True;
+
+      xFrom := xTo;
+      yFrom := yTo;
+      Inc(i, 2);
+    end;
+  end;
+
+  WallCount := _countBlocked;
+
+  while True do
+  begin
+    SandX := 500;
+    SandY := 0;
+
+    CanMoveDown := True;
+    while CanMoveDown do
+    begin
+      if (SandY = MaxY + 2 )then
+        Break;
+
+      CanMoveDown := False;
+      for i := 0 to 2 do
+        if not Grid[SandX + DeltaX[i]][SandY+1] then
+        begin
+          Inc(SandX, DeltaX[i]);
+          inc(SandY, 1);
+          CanMoveDown := True;
+          Break;
+        end;
+    end;
+
+    if (not CanMoveDown) or PartB then
+      Grid[SandX][SandY] := True;
+
+    if Grid[500][0] or (CanMoveDown and not partB) then
+      Break;
+  end;
+
+  Result := _countBlocked - WallCount;
+end;
+{$ENDREGION}
+
 
 {$REGION 'TAdventOfCodeDay'}
 //procedure TAdventOfCodeDay.BeforeSolve;
@@ -1218,6 +1321,6 @@ initialization
 RegisterClasses([
   TAdventOfCodeDay1, TAdventOfCodeDay2, TAdventOfCodeDay3, TAdventOfCodeDay4, TAdventOfCodeDay5,
   TAdventOfCodeDay6, TAdventOfCodeDay7, TAdventOfCodeDay8, TAdventOfCodeDay9, TAdventOfCodeDay10,
-  TAdventOfCodeDay11,TAdventOfCodeDay12,TAdventOfCodeDay13]);
+  TAdventOfCodeDay11,TAdventOfCodeDay12,TAdventOfCodeDay13,TAdventOfCodeDay14]);
 
 end.
