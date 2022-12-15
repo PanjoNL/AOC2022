@@ -174,6 +174,20 @@ end;
     function SolveB: Variant; override;
   end;
 
+  TSensorData = record
+    SensorX, SensorY, BeaconX, BeaconY, ScanDistance: int64;
+    class function LoadFromString(aStr: string): TSensorData; static;
+  end;
+
+  TAdventOfCodeDay15 = class(TAdventOfCode)
+  private
+    FScan: TList<TSensorData>;
+  protected
+    procedure BeforeSolve; override;
+    procedure AfterSolve; override;
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
 
 
 //  TAdventOfCodeDay = class(TAdventOfCode)
@@ -1286,6 +1300,157 @@ begin
   Result := _countBlocked - WallCount;
 end;
 {$ENDREGION}
+{$REGION 'TAdventOfCodeDay15'}
+class function TSensorData.LoadFromString(aStr: string): TSensorData;
+var
+  Split: TStringDynArray;
+begin
+  aStr := StringReplace(aStr, ':', '', [rfReplaceAll]);
+  Split := SplitString(aStr, ' =,');
+
+  Result.SensorX := StrToInt64(Split[3]);
+  Result.SensorY := StrToInt64(Split[6]);
+  Result.BeaconX := StrToInt64(Split[12]);
+  Result.BeaconY := StrToInt64(Split[15]);
+  Result.ScanDistance := Abs(Result.SensorX - Result.BeaconX) + Abs(Result.SensorY - Result.BeaconY);
+end;
+
+procedure TAdventOfCodeDay15.BeforeSolve;
+var
+  s: string;
+begin
+  inherited;
+
+  FScan := TList<TSensorData>.Create;
+  for s in FInput do
+    FScan.Add(TSensorData.LoadFromString(s));
+end;
+
+procedure TAdventOfCodeDay15.AfterSolve;
+begin
+  inherited;
+  FScan.Free;
+end;
+
+type
+  rRange = record
+    Left, Right: int64;
+  end;
+
+function TAdventOfCodeDay15.SolveA: Variant;
+const TargetLine: int64 = 2000000;
+var
+  i: Integer;
+  HDistance: int64;
+  NewRange, Range: rRange;
+  Ranges: TList<rRange>;
+  CanAdd: Boolean;
+  Sensor: TSensorData;
+  BeaconsOnLine: TList<int64>;
+begin
+  BeaconsOnLine := TList<int64>.Create;
+  Ranges := TList<rRange>.Create;
+
+  for Sensor in FScan do
+  begin
+    HDistance := Sensor.ScanDistance - Abs(Sensor.SensorY-TargetLine);
+
+    if HDistance < 0 then
+      Continue;
+
+    NewRange.Left := Sensor.SensorX - HDistance;
+    NewRange.Right := Sensor.SensorX + HDistance;
+
+    // Check if the new range falls completly in a registerd range
+    CanAdd := True;
+    for Range in Ranges do
+      if InRange(NewRange.Left, Range.Left, Range.Right) then
+        if InRange(NewRange.Right, Range.Left, Range.Right) then
+          CanAdd := False;
+
+    if not CanAdd then
+      Continue;
+
+    // Check if there is an existing range in the new range, ifso delete the old range
+    for i := Ranges.Count - 1 downto 0 do
+    begin
+      Range := Ranges[i];
+      if InRange(Range.Left, NewRange.Left, NewRange.Right) then
+        if InRange(Range.Right, NewRange.Left, NewRange.Right) then
+          Ranges.Delete(i);
+    end;
+
+    // Fix overlap
+    for i := Ranges.Count-1 downto 0 do
+    begin
+      Range := Ranges[i];
+      if InRange(NewRange.Left, Range.Left, Range.Right) then
+      begin
+        Range.Right := NewRange.Left -1;
+        Ranges.Delete(i);
+        Ranges.Add(Range)
+      end
+      else if InRange(NewRange.Right, Range.Left, Range.Right) then
+      begin
+        Range.Left := NewRange.Right +1;
+        Ranges.Delete(i);
+        Ranges.Add(Range)
+      end;
+    end;
+
+    Ranges.Add(NewRange);
+    if (Sensor.BeaconY = TargetLine) and not BeaconsOnLine.Contains(Sensor.BeaconX) then
+      BeaconsOnLine.Add(Sensor.BeaconX);
+  end;
+
+  Result := -BeaconsOnLine.Count;;
+  for Range in Ranges do
+    Result := Result + Range.Right - Range.Left + 1;
+
+  BeaconsOnLine.Free;
+  Ranges.Free;
+end;
+
+function TAdventOfCodeDay15.SolveB: Variant;
+
+  function _valid(aX, aY: int64): Boolean;
+  var
+    Data: TSensorData;
+    dist: Int64;
+  begin
+    Result := True;
+
+    for Data in FScan do
+    begin
+      Dist := abs(Data.SensorX - aX) + abs(Data.SensorY - ay);
+      if dist < Data.ScanDistance then
+        Exit(False);
+    end;
+  end;
+
+var
+  x, y: Int64;
+  Data: TSensorData;
+begin
+  Result := 0;
+  for Data in FScan do
+  begin
+    y := Data.SensorY + Data.ScanDistance + 1;
+    for x := Data.SensorX to Data.SensorX + Data.ScanDistance + 1 do
+    begin
+      if (x < 0) or (x > 4000000) or (y < 0) or (y > 4000000) then
+        Break;
+
+      if _valid(x,y) then
+        Exit(x*4000000+y);
+
+      Dec(y);
+    end;
+  end;
+end;
+
+
+{$ENDREGION}
 
 
 {$REGION 'TAdventOfCodeDay'}
@@ -1321,6 +1486,6 @@ initialization
 RegisterClasses([
   TAdventOfCodeDay1, TAdventOfCodeDay2, TAdventOfCodeDay3, TAdventOfCodeDay4, TAdventOfCodeDay5,
   TAdventOfCodeDay6, TAdventOfCodeDay7, TAdventOfCodeDay8, TAdventOfCodeDay9, TAdventOfCodeDay10,
-  TAdventOfCodeDay11,TAdventOfCodeDay12,TAdventOfCodeDay13,TAdventOfCodeDay14]);
+  TAdventOfCodeDay11,TAdventOfCodeDay12,TAdventOfCodeDay13,TAdventOfCodeDay14,TAdventOfCodeDay15]);
 
 end.
