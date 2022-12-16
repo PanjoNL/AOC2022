@@ -12,6 +12,8 @@ uses
   AocLetterReader;
 
 type
+  SetOfByte = Set of Byte;
+
   TAdventOfCodeDay1 = class(TAdventOfCode)
   private
     CaloriesPerElf: TList<integer>;
@@ -33,8 +35,6 @@ type
 
   TAdventOfCodeDay3 = class(TAdventOfCode)
   private
-    Type SetOfByte = Set of Byte;
-
     function GetRucksackContent(aContent: string): SetOfByte;
   protected
     function SolveA: Variant; override;
@@ -188,6 +188,36 @@ end;
     function SolveA: Variant; override;
     function SolveB: Variant; override;
   end;
+
+  rValveData = record
+    Id, GlobalId: Byte;
+    Name: string;
+    FlowRate: Integer;
+    ConnectedTo: Array of string;
+    class function LoadFromString(GlobalId: Byte; aStr: string): rValveData; static;
+  end;
+
+  rValveState = record
+    OpenValves: SetofByte;
+    TotalFlow: Integer;
+    class function create(aOpenValves: SetOfByte; aTotalFlow: Integer): rValveState; static;
+  end;
+
+  TAdventOfCodeDay16 = class(TAdventOfCode)
+  private
+    ValveAA: Byte;
+    AllValves: TDictionary<string, rValveData>;
+    InteresstingValves: TList<rValveData>;
+    DistanceMatrix: array of array of Integer;
+    PartBData: PriorityQueue<rValveState>;
+
+  protected
+    procedure BeforeSolve; override;
+    procedure AfterSolve; override;
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
+
 
 
 //  TAdventOfCodeDay = class(TAdventOfCode)
@@ -1451,7 +1481,189 @@ end;
 
 
 {$ENDREGION}
+{$REGION 'TAdventOfCodeDay16'}
+class function rValveData.LoadFromString(GlobalId: Byte; aStr: string): rValveData;
+var
+  i: Integer;
+  Split: TStringDynArray;
+begin
+  aStr := aStr.Replace(';', '').Replace(',', '').Replace('=', ' ');
+  Split := SplitString(aStr, ' ');
 
+  Result.GlobalId := GlobalId;
+  Result.Name := Split[1];
+  Result.FlowRate := Split[5].ToInteger;
+  SetLength(Result.ConnectedTo, Length(Split) -10);
+  for i := 10 to Length(Split) -1 do
+    Result.ConnectedTo[i-10] := Split[i];
+end;
+
+class function rValveState.create(aOpenValves: SetOfByte; aTotalFlow: Integer): rValveState;
+begin
+  Result.OpenValves := aOpenValves;
+  Result.TotalFlow := aTotalFlow;
+end;
+
+procedure TAdventOfCodeDay16.BeforeSolve;
+
+  type ValveWork = record
+    Valve: rValveData;
+    Distance: integer;
+  end;
+
+  function _CalcDistance(aFrom, aTo: rValveData): integer;
+  var
+    Comparer: IComparer<ValveWork>;
+    Queue: PriorityQueue<ValveWork>;
+    CurrentWork, NewWork: ValveWork;
+    s: string;
+    Seen: SetOfByte;
+  begin
+    Seen := [];
+    Comparer := TComparer<ValveWork>.Construct(
+      function(const Left, Right: ValveWork): integer
+      begin
+        result := Sign(Left.Distance - Right.Distance);
+      end);
+    Queue := PriorityQueue<ValveWork>.Create(Comparer, Comparer);
+
+    NewWork.Distance := 0;
+    NewWork.Valve := aFrom;
+    Queue.Enqueue(NewWork);
+
+    while queue.Count > 0 do
+    begin
+      CurrentWork := Queue.Dequeue;
+      if CurrentWork.Valve.GlobalId = aTo.GlobalId then
+        Exit(CurrentWork.Distance);
+
+      if CurrentWork.Valve.GlobalId in seen then
+        Continue;
+      Include(Seen, CurrentWork.Valve.GlobalId);
+
+      for s in CurrentWork.Valve.ConnectedTo do
+      begin
+        NewWork.Distance := CurrentWork.Distance + 1;
+        NewWork.Valve := AllValves[s];
+        Queue.Enqueue(NewWork);
+      end;
+    end;
+
+    raise Exception.CreateFmt('No path between %s and %s', [aFrom.Name, aTo.Name]);
+  end;
+
+var
+  s: String;
+  Valve: rValveData;
+  i,j,Distance: integer;
+  PartBComparer : IComparer<rValveState>;
+begin
+  inherited;
+
+  AllValves := TDictionary<string, rValveData>.Create;
+  InteresstingValves := TList<rValveData>.Create;
+
+  // Read input
+  for s in FInput do
+  begin
+    Valve := rValveData.LoadFromString(AllValves.Count, s);
+    Valve.Id := 255;
+    if (Valve.FlowRate > 0) or (Valve.Name = 'AA') then
+    begin
+      Valve.Id := InteresstingValves.Count;
+      InteresstingValves.Add(Valve);
+    end;
+
+    AllValves.Add(Valve.Name, Valve);
+  end;
+
+  ValveAA := AllValves['AA'].Id;
+
+  // Build distance matrix for interesting valves
+  SetLength(DistanceMatrix, InteresstingValves.Count);
+  for i := 0 to InteresstingValves.Count-1 do
+    SetLength(DistanceMatrix[i], InteresstingValves.Count);
+
+  for i := 0 to InteresstingValves.Count-1 do
+    for j := i+1 to InteresstingValves.Count-1 do
+    begin
+      Distance := _CalcDistance(InteresstingValves[i], InteresstingValves[j]);
+      DistanceMatrix[i][j] := Distance;
+      DistanceMatrix[j][i] := Distance;
+    end;
+
+  // Init stuff for part b, so it can be used in the calc loops of parta
+  PartBComparer := TComparer<rValveState>.Construct(
+    function(const Left, Right: rValveState): integer
+    begin
+      Result := Sign(Right.TotalFlow - Left.TotalFlow);
+    end);
+  PartBData := PriorityQueue<rValveState>.Create(PartBComparer,PartBComparer);
+end;
+
+procedure TAdventOfCodeDay16.AfterSolve;
+begin
+  inherited;
+  AllValves.Free;
+  InteresstingValves.Free;
+end;
+
+function TAdventOfCodeDay16.SolveA: Variant;
+
+  function DoOpenValves(Current: Byte; ScoreA, TimeLeftA, ScoreB, TimeLeftB: integer; OpenValves: SetOfByte): int64;
+  var
+    LocalTimeA, FlowA, LocalTimeB, FlowB: integer;
+    NextId: Byte;
+  begin
+    Result := ScoreA;
+    if TimeLeftA <= 1 then
+      Exit;
+
+    if TimeLeftB >= 1 then
+      PartBData.Enqueue(rValveState.create(OpenValves, ScoreB));
+
+    for NextId := 0 to InteresstingValves.Count-1 do
+    begin
+      if not (NextId in OpenValves) then
+      begin
+        LocalTimeA := TimeLeftA -1 - DistanceMatrix[Current][NextId];
+        FlowA := LocalTimeA*InteresstingValves[NextId].FlowRate;
+        LocalTimeB := TimeLeftB -1 - DistanceMatrix[Current][NextId];
+        FlowB := LocalTimeB*InteresstingValves[NextId].FlowRate;
+
+        Result := Max(Result, DoOpenValves(NextId, ScoreA + FlowA, LocalTimeA, ScoreB + FlowB, LocalTimeB, OpenValves + [NextId]))
+      end;
+    end;
+  end;
+
+begin
+  Result := DoOpenValves(ValveAA, 0, 30, 0, 26, [ValveAA]);
+end;
+
+function TAdventOfCodeDay16.SolveB: Variant;
+var
+  i: Integer;
+  CurrentState: rValveState;
+  All: TArray<rValveState>;
+begin
+  result := 0;
+
+  All := PartBData.Elements.ToArray;
+  while PartBData.Count > 0 do
+  begin
+    CurrentState := PartBData.Dequeue;
+
+    for i := 0 to PartBData.Count-1 do
+    begin
+      if (Result > 0) and (CurrentState.TotalFlow + All[i].TotalFlow < Result) then
+        Break;
+
+      if CurrentState.OpenValves*All[i].OpenValves = [ValveAA] then
+        Result := Max(Result, CurrentState.TotalFlow + All[i].TotalFlow);
+    end;
+  end;
+end;
+{$ENDREGION}
 
 {$REGION 'TAdventOfCodeDay'}
 //procedure TAdventOfCodeDay.BeforeSolve;
@@ -1486,6 +1698,7 @@ initialization
 RegisterClasses([
   TAdventOfCodeDay1, TAdventOfCodeDay2, TAdventOfCodeDay3, TAdventOfCodeDay4, TAdventOfCodeDay5,
   TAdventOfCodeDay6, TAdventOfCodeDay7, TAdventOfCodeDay8, TAdventOfCodeDay9, TAdventOfCodeDay10,
-  TAdventOfCodeDay11,TAdventOfCodeDay12,TAdventOfCodeDay13,TAdventOfCodeDay14,TAdventOfCodeDay15]);
+  TAdventOfCodeDay11,TAdventOfCodeDay12,TAdventOfCodeDay13,TAdventOfCodeDay14,TAdventOfCodeDay15,
+  TAdventOfCodeDay16]);
 
 end.
