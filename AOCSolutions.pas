@@ -232,7 +232,6 @@ end;
     PartA, PartB: Int64;
   protected
     procedure BeforeSolve; override;
-    procedure AfterSolve; override;
     function SolveA: Variant; override;
     function SolveB: Variant; override;
   end;
@@ -1458,45 +1457,122 @@ begin
   Ranges.Free;
 end;
 
+type LineSegment = record
+  Top, Bottom: TPosition;
+  class function Create(aTop, aBottom: TPosition): LineSegment; static;
+end;
+
+class function LineSegment.Create(aTop, aBottom: TPosition): LineSegment;
+begin
+  Result.Top := aTop;
+  Result.Bottom := ABottom
+end;
+
 function TAdventOfCodeDay15.SolveB: Variant;
 
-  function _valid(aX, aY: int64): Boolean;
+  function _Between(value, a,b: int64): boolean;
   var
-    Data: TSensorData;
-    dist: Int64;
+    aMin, aMax: int64;
   begin
-    Result := True;
+    aMin := Min(a,b);
+    aMax := Max(a,b);
+    Result := InRange(value, aMin, aMax);
+  end;
 
-    for Data in FScan do
-    begin
-      Dist := abs(Data.SensorX - aX) + abs(Data.SensorY - ay);
-      if dist < Data.ScanDistance then
-        Exit(False);
-    end;
+  procedure MergeSegments(aSegments: TList<LineSegment>; Direction: int64);
+  var
+    TempSegments: TList<LineSegment>;
+    i,j: integer;
+    BaseX1, BaseX2: int64;
+    Seg1, Seg2, NewSegment: LineSegment;
+  begin
+    TempSegments := TList<LineSegment>.Create(aSegments);
+    aSegments.Clear;
+    for i := 0 to TempSegments.Count-1 do
+      for j := i+1 to TempSegments.Count-1 do
+      begin
+        Seg1 := TempSegments[i];
+        Seg2 := TempSegments[j];
+
+        BaseX1 := Seg1.Bottom.x - Seg1.Bottom.y * Direction;
+        BaseX2 := Seg2.Bottom.x - Seg2.Bottom.y * Direction;
+
+        if BaseX1 <> BaseX2 then
+          Continue;
+
+        NewSegment.Top := Seg1.Top;
+        if Seg1.top.x > Seg2.top.x then
+          NewSegment.Top := Seg2.Top;
+
+        NewSegment.Bottom := Seg1.Bottom;
+        if Seg1.Bottom.x < Seg2.Bottom.x then
+          NewSegment.Bottom := Seg2.Bottom;
+
+        if NewSegment.Top.y > NewSegment.Bottom.y then
+          aSegments.Add(NewSegment);
+      end;
+    TempSegments.Free;
   end;
 
 var
-  x, y: Int64;
+  x, y, d, b1, b2: Int64;
+  pTop, pLeft, pRight, pBottom: TPosition;
+  pSegment, nSegment: LineSegment;
   Data: TSensorData;
+  Valid: Boolean;
+  pLines, nLines: TList<LineSegment>;
 begin
-  Result := 0;
-  for Data in FScan do
-  begin
-    y := Data.SensorY + Data.ScanDistance + 1;
-    for x := Data.SensorX to Data.SensorX + Data.ScanDistance + 1 do
+  pLines := TList<LineSegment>.Create;
+  nLines := TList<LineSegment>.Create;
+
+  try
+    for Data in FScan do
     begin
-      if (x < 0) or (x > 4000000) or (y < 0) or (y > 4000000) then
-        Break;
+      d := Data.ScanDistance +1;
 
-      if _valid(x,y) then
-        Exit(x*4000000+y);
+      pTop    := pTop.SetIt(Data.SensorX, Data.SensorY + d);
+      pLeft   := pLeft.SetIt(Data.SensorX - d, Data.SensorY);
+      pRight  := pRight.SetIt(Data.SensorX + d, Data.SensorY);
+      pBottom := pBottom.SetIt(Data.SensorX, Data.SensorY - d);
 
-      Dec(y);
+      pLines.Add(LineSegment.Create(pTop, pLeft));
+      pLines.Add(LineSegment.Create(pRight, pBottom));
+      nLines.Add(LineSegment.Create(pTop, pRight));
+      nLines.Add(LineSegment.Create(pLeft, pBottom));
     end;
+
+    MergeSegments(pLines, 1);
+    MergeSegments(nLines, -1);
+
+    for pSegment in pLines do
+      for nSegment in nLines do
+      begin
+        b1 := pSegment.Top.Y - pSegment.Top.X;
+        b2 := nSegment.Top.Y + nSegment.Top.X;
+
+        x := round((b2 - b1) / 2);
+        y := x + b1;
+        if _Between(x, pSegment.Bottom.x, pSegment.Top.x) and
+           _Between(x, nSegment.Bottom.x, nSegment.Top.x) and
+           _Between(y, pSegment.Bottom.y, pSegment.Top.y) and
+           _Between(y, nSegment.Bottom.y, nSegment.Top.y) and
+           InRange(x, 0, 4000000) and InRange(y, 0, 4000000) then
+        begin
+
+          Valid := True;
+          for Data in FScan do
+            if (abs(x - Data.SensorX) + abs(Y - Data.SensorY)) < Data.ScanDistance then
+              Valid := False;
+
+          if Valid then
+            Exit(x*4000000+y);
+        end;
+      end;
+  finally
+    nLines.Free;
+    pLines.Free;
   end;
 end;
-
-
 {$ENDREGION}
 {$REGION 'TAdventOfCodeDay16'}
 class function rValveData.LoadFromString(GlobalId: Byte; aStr: string): rValveData;
@@ -1928,6 +2004,8 @@ end;
 ////
 //end;
 {$ENDREGION}
+
+
 
 initialization
 

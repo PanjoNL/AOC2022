@@ -27,10 +27,10 @@ end;
 
 type
   TPosition = record
-    x: integer;
-    y: Integer;
-    function SetIt(const aX, aY: integer): TPosition;
-    function AddDelta(const aX, aY: Integer): TPosition;
+    x: int64;
+    y: int64;
+    function SetIt(const aX, aY: int64): TPosition;
+    function AddDelta(const aX, aY: int64): TPosition;
     function Equals(Const Other: TPosition): Boolean;
     function Clone: TPosition;
     function ApplyDirection(Const aDirection: TDirection): TPosition;
@@ -188,14 +188,14 @@ begin
   inherited Free;
 end;
 
-function TPosition.SetIt(const aX: Integer; const aY: Integer): TPosition;
+function TPosition.SetIt(const aX: int64; const aY: int64): TPosition;
 begin
   x := aX;
   y := aY;
   Result := Self;
 end;
 
-function TPosition.AddDelta(const aX, aY: Integer): TPosition;
+function TPosition.AddDelta(const aX, aY: int64): TPosition;
 begin
   x := x + aX;
   y := y + aY;
