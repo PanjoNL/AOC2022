@@ -218,7 +218,24 @@ end;
     function SolveB: Variant; override;
   end;
 
+  TAdventOfCodeDay17 = class(TAdventOfCode)
+  private
+    PartA, PartB: Int64;
+  protected
+    procedure BeforeSolve; override;
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
 
+  TAdventOfCodeDay18 = class(TAdventOfCode)
+  private
+    PartA, PartB: Int64;
+  protected
+    procedure BeforeSolve; override;
+    procedure AfterSolve; override;
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
 
 //  TAdventOfCodeDay = class(TAdventOfCode)
 //  protected
@@ -1664,6 +1681,225 @@ begin
   end;
 end;
 {$ENDREGION}
+{$REGION 'TAdventOfCodeDay17'}
+const Rocks: Array[0..4] of array[0..4] of  TPoint =
+(
+  ((X:0; Y:0),(X:1; Y:0),(X:2; Y:0),(X:3; Y:0),(X:3; Y:0)),
+  ((X:1; Y:0),(X:0; Y:1),(X:1; Y:1),(X:2; Y:1),(X:1; Y:2)),
+  ((X:0; Y:0),(X:1; Y:0),(X:2; Y:0),(X:2; Y:1),(X:2; Y:2)),
+  ((X:0; Y:0),(X:0; Y:1),(X:0; Y:2),(X:0; Y:3),(X:0; Y:3)),
+  ((X:0; Y:0),(X:1; Y:0),(X:0; Y:1),(X:1; Y:1),(X:1; Y:1))
+);
+
+procedure TAdventOfCodeDay17.BeforeSolve;
+var
+  RockPixels: TDictionary<TPoint,Boolean>;
+
+  function _ValidPosition(X, Y, RockIndex: integer): boolean;
+  var
+    RockOffsets, Point: TPoint;
+  begin
+    Result := True;
+    for RockOffsets in Rocks[RockIndex] do
+    begin
+      Point := TPoint.Create(x,y);
+      Point.Offset(RockOffsets);
+
+      if (Point.X < 0) or (Point.X > 6) or (Point.Y < 0) then
+        Exit(False);
+
+      if RockPixels.ContainsKey(Point) then
+        Exit(False);
+    end;
+  end;
+
+
+var
+  Seen: TDictionary<integer, int64>;
+  Heights: TList<int64>;
+  BaseX, RockIndex, instructionIndex, Key: integer;
+  DeltaX, BaseY, Counter, MaxHeight: Int64;
+  Start, PrevCounter, CounterDelta, DeltaSteps, HeightDelta, StepsLeft, StepsRemainder: int64;
+  RockPixel, RockOffSet: TPoint;
+begin
+  inherited;
+
+  Seen := TDictionary<integer, int64>.Create;
+  Heights := TList<int64>.Create;
+  RockPixels := TDictionary<TPoint, boolean>.Create;
+  try
+    Heights.Add(0);
+
+    instructionIndex := 0;
+    RockIndex := -1;
+    MaxHeight := 0;
+    Counter := 0;
+    while Counter < 1000000000000 do
+    begin
+      Inc(Counter);
+      BaseX := 2;
+      BaseY := Heights.Last + 3;
+      RockIndex := (RockIndex + 1) mod 5;
+
+      while true do
+      begin
+        // Move instructionPointer
+        instructionIndex := instructionIndex + 1;
+        if instructionIndex > Length(FInput[0]) then
+          instructionIndex := 1;
+
+        // Deterimine direction
+        DeltaX := 1;
+        if FInput[0][instructionIndex] = '<' then
+          DeltaX := -1;
+
+        // Check if the rock can move horizontal;
+        if _ValidPosition(BaseX + DeltaX, BaseY, RockIndex) then
+          BaseX := BaseX + DeltaX;
+
+        // Try to move rock down
+        BaseY := BaseY - 1;
+        if not _ValidPosition(BaseX, BaseY, RockIndex) then
+        begin
+          // At this point the rock stopped moving, revert change in y-direction
+          BaseY := BaseY + 1;
+
+          // Mark all points of the rock as visited
+          for RockOffSet in Rocks[RockIndex] do
+          begin
+            RockPixel := TPoint.Create(BaseX, BaseY);
+            RockPixel.Offset(RockOffSet);
+            if not RockPixels.ContainsKey(RockPixel) then
+              RockPixels.Add(RockPixel, True);
+            MaxHeight := Max(MaxHeight, RockPixel.Y + 1);
+          end;
+
+          // Try to find a patern after a warmup
+          if (Counter > 2022) then
+          begin
+            Key := (RockIndex shl 28) + (BaseX shl 24) + instructionIndex;
+
+            if Seen.TryGetValue(Key, PrevCounter) then
+            begin
+              CounterDelta := Counter - PrevCounter;
+              HeightDelta := MaxHeight - Heights[Counter-CounterDelta];
+
+              StepsLeft := 1000000000000 - Counter;
+
+              DeltaSteps := StepsLeft div CounterDelta;
+              StepsRemainder := StepsLeft mod CounterDelta;
+              Start := Counter - CounterDelta + StepsRemainder;
+
+              PartA := Heights[2022];
+              PartB := Heights[Start] + (DeltaSteps + 1) * HeightDelta;
+
+              Exit;
+            end
+            else
+              Seen.Add(Key, Counter);
+          end;
+
+          Heights.Add(MaxHeight);
+          break;
+        end;
+      end;
+    end;
+  finally
+    Heights.Free;
+    Seen.Free;
+    RockPixels.Free;
+  end;
+end;
+
+function TAdventOfCodeDay17.SolveA: Variant;
+begin
+  Result := PartA;
+end;
+
+function TAdventOfCodeDay17.SolveB: Variant;
+begin
+  Result := PartB;
+end;
+{$ENDREGION}
+{$REGION 'TAdventOfCodeDay18'}
+const LavaBlockOffsets: array[0..5] of TPosition3 = (
+  (x: 1; y: 0; z: 0), (x: 0; y: 1; z: 0), (x: 0; y: 0; z: 1),
+  (x:-1; y: 0; z: 0), (x: 0; y:-1; z: 0), (x: 0; y: 0; z:-1));
+
+procedure TAdventOfCodeDay18.BeforeSolve;
+var
+  LavaBlocks, AirBlocks: TDictionary<TPosition3,Boolean>;
+  AirBlocksToCalc: TStack<TPosition3>;
+  LavaBlock, MinPos, MaxPos, PositionToCheck, Offset: TPosition3;
+  s: string;
+  Split: TStringDynArray;
+begin
+  PartA := 0;
+  PartB := 0;
+
+  inherited;
+
+  LavaBlocks := TDictionary<TPosition3, Boolean>.Create;
+  AirBlocks := TDictionary<TPosition3, Boolean>.Create;
+  AirBlocksToCalc := TStack<TPosition3>.Create;
+  try
+    MinPos := TPosition3.Create(MaxInt, MaxInt, MaxInt);
+    MaxPos := TPosition3.Create(-MaxInt, -MaxInt, -MaxInt);
+    for s in FInput do
+    begin
+      Split := SplitString(s, ',');
+      LavaBlock := TPosition3.Create(Split[0].ToInteger, Split[1].ToInteger, Split[2].ToInteger);
+      LavaBlocks.Add(LavaBlock, True);
+
+      MinPos := TPosition3.Min(MinPos, LavaBlock);
+      MaxPos := TPosition3.Max(MaxPos, LavaBlock);
+    end;
+
+    MinPos := MinPos + TPosition3.Create(-1,-1,-1);
+    MaxPos := MaxPos + TPosition3.Create(1,1,1);
+
+    AirBlocksToCalc.Push(MinPos);
+    while AirBlocksToCalc.Count > 0 do
+    begin
+      PositionToCheck := AirBlocksToCalc.Pop;
+      if AirBlocks.ContainsKey(PositionToCheck) or LavaBlocks.ContainsKey(PositionToCheck) or (PositionToCheck < MinPos) or (PositionToCheck > MaxPos) then
+        Continue;
+
+      AirBlocks.Add(PositionToCheck, True);
+      for Offset in LavaBlockOffsets do
+        AirBlocksToCalc.Push(PositionToCheck + Offset);
+    end;
+
+    for LavaBlock in LavaBlocks.Keys do
+      for Offset in LavaBlockOffsets do
+      begin
+        PositionToCheck := LavaBlock + Offset;
+        if LavaBlocks.ContainsKey(PositionToCheck) then
+          Continue;
+
+        Inc(PartA);
+        if AirBlocks.ContainsKey(PositionToCheck) then
+          Inc(PartB);
+      end;
+  finally
+    LavaBlocks.Free;
+    AirBlocks.Free;
+    AirBlocksToCalc.Free;
+  end;
+end;
+
+function TAdventOfCodeDay18.SolveA: Variant;
+begin
+  Result := PartA;
+end;
+
+function TAdventOfCodeDay18.SolveB: Variant;
+begin
+  Result := PartB;
+end;
+
+{$ENDREGION}
+
 
 {$REGION 'TAdventOfCodeDay'}
 //procedure TAdventOfCodeDay.BeforeSolve;
@@ -1699,6 +1935,6 @@ RegisterClasses([
   TAdventOfCodeDay1, TAdventOfCodeDay2, TAdventOfCodeDay3, TAdventOfCodeDay4, TAdventOfCodeDay5,
   TAdventOfCodeDay6, TAdventOfCodeDay7, TAdventOfCodeDay8, TAdventOfCodeDay9, TAdventOfCodeDay10,
   TAdventOfCodeDay11,TAdventOfCodeDay12,TAdventOfCodeDay13,TAdventOfCodeDay14,TAdventOfCodeDay15,
-  TAdventOfCodeDay16]);
+  TAdventOfCodeDay16,TAdventOfCodeDay17,TAdventOfCodeDay18]);
 
 end.

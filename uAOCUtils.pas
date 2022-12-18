@@ -3,7 +3,7 @@ unit uAOCUtils;
 interface
 
 uses
-  System.SysUtils, System.Generics.Collections, AOCBase, RTTI, System.Classes,
+  System.SysUtils, System.Generics.Collections, AOCBase, RTTI, System.Classes, Math,
   System.Net.HttpClient, System.Net.urlclient, system.Generics.Defaults, uAocConfig, vcl.Dialogs, system.uiTypes;
 
 type TAdventOfCodeRef = class of TAdventOfCode;
@@ -41,6 +41,11 @@ type
     class function Create(Const aX, aY, aZ: int64): TPosition3; static;
     class operator Add(a, b: TPosition3): TPosition3;
     class operator Subtract(a, b: TPosition3): TPosition3;
+    class operator GreaterThan(a, b: TPosition3): Boolean;
+    class operator LessThan(a, b: TPosition3): Boolean;
+
+    class function Min(a, b: TPosition3): TPosition3; static;
+    class function Max(a, b: TPosition3): TPosition3; static;
   end;
 
 function GCD(Number1, Number2: int64): int64;
@@ -226,6 +231,16 @@ begin
   Result.z := aZ;
 end;
 
+class operator TPosition3.GreaterThan(a, b: TPosition3): Boolean;
+begin
+  Result := (a.x > b.x) or (a.y > b.y) or (a.z > b.z);
+end;
+
+class operator TPosition3.LessThan(a, b: TPosition3): Boolean;
+begin
+  Result := (a.x < b.x) or (a.y < b.y) or (a.z < b.z);
+end;
+
 class operator TPosition3.Add(a, b: TPosition3): TPosition3;
 begin
   Result.x := a.x + b.x;
@@ -238,6 +253,20 @@ begin
   Result.x := a.x - b.x;
   Result.y := a.y - b.y;
   Result.z := a.z - b.z;
+end;
+
+class function TPosition3.Max(a, b: TPosition3): TPosition3;
+begin
+  Result.x := Math.Max(a.x, b.x);
+  Result.y := Math.Max(a.y, b.y);
+  Result.z := Math.Max(a.z, b.z);
+end;
+
+class function TPosition3.Min(a, b: TPosition3): TPosition3;
+begin
+  Result.x := Math.Min(a.x, b.x);
+  Result.y := Math.Min(a.y, b.y);
+  Result.z := Math.Min(a.z, b.z);
 end;
 
 function GCD(Number1, Number2: int64): int64;
