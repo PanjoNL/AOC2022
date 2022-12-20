@@ -244,6 +244,15 @@ end;
     function SolveB: Variant; override;
   end;
 
+  TAdventOfCodeDay20 = class(TAdventOfCode)
+  private
+    function DecryptMessage(Const DecreptionKey, Rounds: int64): int64;
+  protected
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
+
+
 
 //  TAdventOfCodeDay = class(TAdventOfCode)
 //  protected
@@ -2224,6 +2233,108 @@ end;
 
 
 {$ENDREGION}
+{$REGION 'TAdventOfCodeDay20'}
+type tGroveNode = class
+  Prev, Next: TGroveNode;
+  Value: int64;
+  constructor Create(aValue: int64); reintroduce;
+end;
+
+constructor tGroveNode.Create(aValue: int64);
+begin
+  Value := aValue;
+end;
+
+function TAdventOfCodeDay20.DecryptMessage(const DecreptionKey, Rounds: int64): int64;
+var
+  i, Steps, round, x: int64;
+  Nodes: TObjectDictionary<integer,tGroveNode>;
+  PrevNode, CurrentNode, NodeToMove, NewNext, NewPrev, ZeroNode: tGroveNode;
+begin
+  Nodes := TObjectDictionary<integer,tGroveNode>.Create([doOwnsValues]);
+  PrevNode := nil;
+  ZeroNode := nil;
+  CurrentNode := nil;
+
+  for i := 0 to FInput.Count -1 do
+  begin
+    CurrentNode := tGroveNode.Create(FInput[i].ToInt64 * DecreptionKey);
+    CurrentNode.Prev := PrevNode;
+
+    if Assigned(prevNode) then
+      PrevNode.Next := CurrentNode;
+    PrevNode := CurrentNode;
+
+    if CurrentNode.Value = 0 then
+      ZeroNode := CurrentNode;
+
+    Nodes.add(i, CurrentNode);
+  end;
+
+  Nodes[0].Prev := CurrentNode;
+  CurrentNode.Next := Nodes[0];
+
+  for round := 1 to rounds do
+  begin
+    for i := 0 to Nodes.Count -1 do
+    begin
+      NodeToMove := Nodes[i];
+
+      NodeToMove.Next.Prev := NodeToMove.Prev;
+      NodeToMove.Prev.Next := NodeToMove.Next;
+
+      NewNext := NodeToMove.next;
+      NewPrev := NodeToMove.Prev;
+
+      Steps := abs(NodeToMove.Value);
+      Steps := Steps mod (Nodes.Count-1);
+
+      if NodeToMove.Value > 0 then
+      begin
+        for x := 1 to Steps  do
+          NewNext := NewNext.Next;
+        NewPrev := NewNext.Prev;
+      end
+      else
+      begin
+        for x := 1 to Steps do
+          NewPrev := NewPrev.Prev;
+        NewNext := NewPrev.next;
+      end;
+
+      // Insert node in chain
+      NewPrev.next := NodeToMove;
+      NewNext.Prev := NodeToMove;
+      NodeToMove.next := NewNext;
+      NodeToMove.Prev := NewPrev;
+    end;
+  end;
+
+  Result := 0;
+  CurrentNode := ZeroNode;
+  begin
+    for i := 1 to 3 do
+    begin
+      for x := 1 to 1000 do
+        CurrentNode := CurrentNode.Next;
+
+      Result := result + CurrentNode.Value;
+    end;
+  end;
+
+  Nodes.Free;
+end;
+
+function TAdventOfCodeDay20.SolveA: Variant;
+begin
+  Result := DecryptMessage(1, 1);
+end;
+
+function TAdventOfCodeDay20.SolveB: Variant;
+begin
+  Result := DecryptMessage(811589153, 10);
+end;
+{$ENDREGION}
 
 
 {$REGION 'TAdventOfCodeDay'}
@@ -2260,6 +2371,6 @@ RegisterClasses([
   TAdventOfCodeDay1, TAdventOfCodeDay2, TAdventOfCodeDay3, TAdventOfCodeDay4, TAdventOfCodeDay5,
   TAdventOfCodeDay6, TAdventOfCodeDay7, TAdventOfCodeDay8, TAdventOfCodeDay9, TAdventOfCodeDay10,
   TAdventOfCodeDay11,TAdventOfCodeDay12,TAdventOfCodeDay13,TAdventOfCodeDay14,TAdventOfCodeDay15,
-  TAdventOfCodeDay16,TAdventOfCodeDay17,TAdventOfCodeDay18,TAdventOfCodeDay19]);
+  TAdventOfCodeDay16,TAdventOfCodeDay17,TAdventOfCodeDay18,TAdventOfCodeDay19,TAdventOfCodeDay20]);
 
 end.
