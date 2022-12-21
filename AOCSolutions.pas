@@ -240,8 +240,8 @@ end;
   TOreArray = array[TOreType] of integer;
 
   rBlueprint = record
+    BluePrintId: integer;
     Costs: array[TOreType] of TOreArray;
-    BluePrintId, OreRobot_Ore, ClayRobot_Ore, ObsidianRobot_Ore, ObsidianRobot_Clay, GeodeRobot_OreCost, GeodeRobot_Obsidian: integer;
     class function LoadFromString(aStr: string): rBlueprint; static;
   end;
 
@@ -2026,14 +2026,7 @@ var
   OreType1, OreType2: TOreType;
 begin
   Split := SplitString(aStr.Replace(':', ''), ' ');
-
   Result.BluePrintId := Split[1].ToInteger;
-  Result.OreRobot_Ore:= Split[6].ToInteger;
-  Result.ClayRobot_Ore := Split[12].ToInteger;
-  Result.ObsidianRobot_Ore := Split[18].ToInteger;
-  Result.ObsidianRobot_Clay := Split[21].ToInteger;
-  Result.GeodeRobot_OreCost := Split[27].ToInteger;
-  Result.GeodeRobot_Obsidian := Split[30].ToInteger;
 
   for OreType1 := Low(TOreType) to High(TOreType) do
     for OreType2 := Low(TOreType) to High(TOreType) do
@@ -2050,140 +2043,59 @@ end;
 function TAdventOfCodeDay19.AnalyzeBlueprint(aBlueprint: rBlueprint; runtime: integer): integer;
 var
   MaxRobotsNeeded: TOreArray;
-  BestGeodeCount, MaxOreNeeded: integer;
+  BestGeodeCount: integer;
 
-  procedure InternalAnalyze2(aTimeLeft, aOreRobotCount, aClayRobotCount, aObsidianRobotCount, aGeodeRobotCount, aOreCount, aClayCount, aObsidiantCount, aGeodeCount: integer; state: string);
+  procedure InternalAnalyze3(aTimeLeft: integer; RobotCount, OreCounts: TOreArray);
   var
-    BestGeodeGues, TimeToSkip: integer;
-    CanMakeBot: boolean;
-    NewState: string;
+    BestGeodeGues, TimeToSkip, CurrentGeodeCount: integer;
+    CanMakeBot, BotsExists: boolean;
+    NewRobotCount, NewOreCount: TOreArray;
+    RobotToMake, CurrentOre2: TOreType;
   begin
-    NewState := state + #10#13 + format('%d, %d, %d, %d, %d, %d, %d, %d, %d', [aTimeLeft, aOreRobotCount, aClayRobotCount, aObsidianRobotCount, aGeodeRobotCount, aOreCount, aClayCount, aObsidiantCount, aGeodeCount]);
+    CurrentGeodeCount := OreCounts[geode] + RobotCount[geode] * (aTimeLeft);
 
     if aTimeLeft <= 0 then exit;
-      BestGeodeCount := Max(BestGeodeCount, aGeodeCOunt);
+      BestGeodeCount := Max(BestGeodeCount, CurrentGeodeCount);
 
-    BestGeodeGues := aGeodeCount + ceil((aTimeLeft * (aTimeLeft-1))/2);
-    if BestGeodeGues < BestGeodeCount then
+    BestGeodeGues := CurrentGeodeCount + ceil((aTimeLeft * (aTimeLeft-1))/2);
+    if BestGeodeGues <= BestGeodeCount then
       Exit;
 
-    // Try to make a geode bot
-    if aObsidianRobotCount > 0 then
+    for RobotToMake := High(TOreType) downto low(TOreType) do
     begin
-      CanMakeBot := (aOreCount >= aBlueprint.GeodeRobot_OreCost) and (aObsidiantCount >= aBlueprint.GeodeRobot_Obsidian);
-      TimeToSkip := 1;
-      if not CanMakeBot then
-        TimeToSkip := TimeToSkip + (Max(Ceil((aBlueprint.GeodeRobot_OreCost - aOreCount) /aOreRobotCount),
-                                        Ceil((aBlueprint.GeodeRobot_Obsidian - aObsidiantCount)/aObsidianRobotCount)));
-      InternalAnalyze2(
-        aTimeLeft-TimeToSkip,
-        aOreRobotCount, aClayRobotCount, aObsidianRobotCount, aGeodeRobotCount +1,
-        aOreCount       + TimeToSkip*aOreRobotCount -aBlueprint.GeodeRobot_OreCost,
-        aClayCount      + TimeToSkip*aClayRobotCount,
-        aObsidiantCount + TimeToSkip*aObsidianRobotCount - aBlueprint.GeodeRobot_Obsidian,
-        aGeodeCount     + aTimeLeft - TimeToSkip,
-        NewState);
-    end;
-
-    if (aClayRobotCount > 0) and (aObsidianRobotCount < aBlueprint.GeodeRobot_Obsidian) then
-    begin
-      CanMakeBot := (aOreCount >= aBlueprint.ObsidianRobot_Ore) and (aClayCount >= aBlueprint.ObsidianRobot_Clay);
-      TimeToSkip := 1;
-      if not CanMakeBot then
-        TimeToSkip := TimeToSkip + (Max(Ceil((aBlueprint.ObsidianRobot_Ore-aOreCount)/aOreRobotCount),
-                                        Ceil((aBlueprint.ObsidianRobot_Clay-aClayCount)/aClayRobotCount)));
-      InternalAnalyze2(
-        aTimeLeft-TimeToSkip,
-        aOreRobotCount, aClayRobotCount, aObsidianRobotCount+1, aGeodeRobotCount,
-        aOreCount  + TimeToSkip*aOreRobotCount -aBlueprint.ObsidianRobot_Ore,
-        aClayCount + TimeToSkip*aClayRobotCount - aBlueprint.ObsidianRobot_Clay,
-        aObsidiantCount + TimeToSkip*aObsidianRobotCount,
-        aGeodeCount, NewState);
-    end;
-
-    if (aOreRobotCount > 0) and (aClayRobotCount < aBlueprint.ObsidianRobot_Clay) then
-    begin
-      CanMakeBot := (aOreCount >= aBlueprint.ClayRobot_Ore);
-      TimeToSkip := 1;
-      if not CanMakeBot then
-        TimeToSkip := TimeToSkip + Ceil((aBlueprint.ClayRobot_Ore-aOreCount)/aOreRobotCount);
-      InternalAnalyze2(
-        aTimeLeft-TimeToSkip,
-        aOreRobotCount, aClayRobotCount+1, aObsidianRobotCount, aGeodeRobotCount,
-        aOreCount  + TimeToSkip*aOreRobotCount -aBlueprint.ClayRobot_Ore,
-        aClayCount + TimeToSkip*aClayRobotCount,
-        aObsidiantCount + TimeToSkip*aObsidianRobotCount,
-        aGeodeCount,NewState);
-    end;
-
-    if (aOreRobotCount < MaxRobotsNeeded[ore]) then
-    begin
-      CanMakeBot := (aOreCount >= aBlueprint.OreRobot_Ore);
-      TimeToSkip := 1;
-      if not CanMakeBot then
-        TimeToSkip := TimeToSkip + Ceil((aBlueprint.OreRobot_Ore-aOreCount)/aOreRobotCount);
-      InternalAnalyze2(
-        aTimeLeft-TimeToSkip,
-        aOreRobotCount+1, aClayRobotCount, aObsidianRobotCount,aGeodeRobotCount,
-        aOreCount  + TimeToSkip*aOreRobotCount -aBlueprint.OreRobot_Ore,
-        aClayCount + TimeToSkip*aClayRobotCount,
-        aObsidiantCount + TimeToSkip*aObsidianRobotCount,
-        aGeodeCount,NewState);
-    end;
-  end;
-
-  procedure InternalAnalyze(aTimeLeft: integer; RobotCounts, OreCounts: TOreArray);
-  var
-    BestGeodeGues, TimeToSkip: integer;
-    CanMakeBot, BotsExist: boolean;
-    NewState: string;
-    RobotType, OreType: TOreType;
-    NewRobotCounts, NewOreCounts: TOreArray;
-  begin
-    if aTimeLeft <= 0 then exit;
-      BestGeodeCount := Max(BestGeodeCount, OreCounts[geode]);
-
-    BestGeodeGues := OreCounts[geode] + ceil((aTimeLeft * (aTimeLeft-1))/2);
-    if BestGeodeGues < BestGeodeCount then
-      Exit;
-
-    for RobotType := Low(TOreType) to High(TOreType) do
-    begin
-      BotsExist := True;
-      CanMakeBot := True;
+      BotsExists := True;
       TimeToSkip := 0;
-      for OreType := Low(TOreType) to High(TOreType) do
-      begin
-        if aBlueprint.Costs[RobotType][OreType] = 0 then
-          Continue; // ore not requierd;
 
-        if RobotCounts[OreType] = 0 then
-        begin
-          BotsExist := False;
-          continue; // one of the requierd bots is missing
-        end;
-
-        CanMakeBot := CanMakeBot and (aBlueprint.Costs[RobotType][OreType] <= OreCounts[OreType]);
-        if not CanMakeBot then
-          TimeToSkip := Max(TimeToSkip, Ceil((aBlueprint.Costs[RobotType][OreType]-OreCounts[OreType])/RobotCounts[OreType]));
-      end;
-
-      if not BotsExist then
+      if RobotCount[RobotToMake] >= MaxRobotsNeeded[RobotToMake] then
         Continue;
 
-      Inc(TimeToSkip);
-      NewRobotCounts := RobotCounts;
-      NewOreCounts := OreCounts;
+      for CurrentOre2 := Low(TOreType) to High(TOreType) do
+      begin
+        if aBlueprint.Costs[RobotToMake][CurrentOre2] = 0 then
+          Continue; // Ore not requierd;
 
-      for OreType := Low(TOreType) to High(TOreType) do
-        if OreType <> geode then
-          NewOreCounts[OreType] := NewOreCounts[OreType] + TimeToSkip * RobotCounts[OreType] - aBlueprint.Costs[RobotType][OreType]
-        else
-          NewOreCounts[geode] := NewOreCounts[geode] + aTimeLeft - TimeToSkip;
+        BotsExists := BotsExists and (RobotCount[CurrentOre2] > 0);
+        if not BotsExists then
+          Continue; // One of the requierd bots is not producec
 
-      NewRobotCounts[RobotType] := NewRobotCounts[RobotType] + 1;
-      InternalAnalyze(aTimeLeft - TimeToSkip, NewRobotCounts, NewOreCounts);
-    end
+        CanMakeBot := (OreCounts[CurrentOre2] >= aBlueprint.Costs[RobotToMake][CurrentOre2]);
+        if not CanMakeBot then
+          TimeToSkip := Max(TimeToSkip, Ceil((aBlueprint.Costs[RobotToMake][CurrentOre2]- OreCounts[CurrentOre2]) / RobotCount[CurrentOre2]  ))
+      end;
+
+      if not BotsExists then
+        Continue;
+
+      inc(TimeToSkip);
+      NewRobotCount := RobotCount;
+      NewRobotCount[RobotToMake] := NewRobotCount[RobotToMake] + 1;
+
+      NewOreCount := OreCounts;
+      for CurrentOre2 := Low(TOreType) to High(TOreType) do
+        NewOreCount[CurrentOre2] := NewOreCount[CurrentOre2] + TimeToSkip*RobotCount[CurrentOre2] - aBlueprint.Costs[RobotToMake][CurrentOre2];
+
+       InternalAnalyze3(aTimeLeft-TimeToSkip, NewRobotCount, NewOreCount);
+    end;
   end;
 
 var
@@ -2202,11 +2114,10 @@ begin
   end;
 
   RobotCounts[ore] := 1;
+  MaxRobotsNeeded[geode] := MaxInt;
 
-  MaxOreNeeded := Max(Max(aBlueprint.OreRobot_Ore, aBlueprint.ClayRobot_Ore), Max(aBlueprint.ObsidianRobot_Ore, aBlueprint.GeodeRobot_OreCost));
   BestGeodeCount := 0;
-  InternalAnalyze2(runtime,1,0,0,0,0,0,0,0,'');
-//  InternalAnalyze(runtime, RobotCounts, OreCounts);
+  InternalAnalyze3(runtime, RobotCounts, OreCounts);
   Result := BestGeodeCount;
 end;
 
@@ -2436,7 +2347,7 @@ var
   FomulaPair: TPair<string, RMonkeyFormula>;
   Formula: RMonkeyFormula;
   Val1, Val2, Res, ToCalc: Int64;
-  s, CalcFrom: String;
+  CalcFrom: String;
   known: TDictionary<string,int64>;
   DidCalc: boolean;
 begin
