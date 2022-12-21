@@ -261,6 +261,24 @@ end;
     function SolveB: Variant; override;
   end;
 
+  TMonkeyMathOperation = (Add, Subtract, Multiply, Divide);
+  RMonkeyFormula = record
+    part1, part2: string;
+    operation: TMonkeyMathOperation;
+    class function Create(aPart1, aPart2: string; aOperator: TMonkeyMathOperation): RMonkeyFormula; static;
+  end;
+
+  TAdventOfCodeDay21 = class(TAdventOfCode)
+  private
+    Formulas: TDictionary<string,RMonkeyFormula>;
+    KnownNumbers: TDictionary<string,int64>;
+    function CalcSimpleFormula(Val1, Val2: Int64; aOperator: TMonkeyMathOperation): int64;
+  protected
+    procedure BeforeSolve; override;
+    procedure AfterSolve; override;
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
 
 
 //  TAdventOfCodeDay = class(TAdventOfCode)
@@ -885,13 +903,12 @@ end;
 {$ENDREGION}
 {$REGION 'TAdventOfCodeDay11'}
 type
-  TMonkeyOperation = (Add, Multiply);
   TMonkeyOperationPart = (Constant, OldValue);
   TMonkey = class
   strict private
     Items: TList<int64>;
 
-    Operation: TMonkeyOperation;
+    Operation: TMonkeyMathOperation;
     OperationPart: TMonkeyOperationPart;
     OperationConstant: int64;
 
@@ -2328,7 +2345,164 @@ begin
   Result := DecryptMessage(811589153, 10);
 end;
 {$ENDREGION}
+{$REGION 'TAdventOfCodeDay21'}
+class function RMonkeyFormula.Create(aPart1, aPart2: string; aOperator: TMonkeyMathOperation): RMonkeyFormula;
+begin
+  Result.part1 := aPart1;
+  Result.part2 := aPart2;
+  Result.operation := aOperator;
+end;
 
+procedure TAdventOfCodeDay21.BeforeSolve;
+var
+  s: string;
+  split: TStringDynArray;
+  op: TMonkeyMathOperation;
+begin
+  inherited;
+
+  Formulas := TDictionary<string,RMonkeyFormula>.Create;
+  KnownNumbers := TDictionary<string,int64>.Create;
+
+  for s in FInput do
+    begin
+      Split := SplitString(s.Replace(':', ''), ' ');
+
+      if Length(Split) = 2 then
+        KnownNumbers.Add(Split[0], Split[1].ToInt64)
+      else
+      begin
+        case IndexText(Split[2], ['+', '-', '*', '/']) of
+          0: op := Add;
+          1: op := Subtract;
+          2: op := Multiply;
+          3: op := Divide;
+        else
+          raise Exception.Createfmt('unkown operator %s', [split[2]]);
+        end;
+
+        Formulas.Add(Split[0], RMonkeyFormula.Create(Split[1], Split[3], op));
+      end;
+    end;
+end;
+
+function TAdventOfCodeDay21.CalcSimpleFormula(Val1, Val2: Int64; aOperator: TMonkeyMathOperation): int64;
+begin
+  Result := 0;
+  case aOperator of
+    Add: Result := Val1 + Val2;
+    Subtract: Result := Val1 - Val2;
+    Multiply: Result := Val1 * Val2;
+    Divide: Result := Round(Val1 / Val2);
+  end;
+end;
+
+procedure TAdventOfCodeDay21.AfterSolve;
+begin
+  inherited;
+  Formulas.Free;
+  KnownNumbers.Free;
+end;
+
+function TAdventOfCodeDay21.SolveA: Variant;
+var
+  Val1, Val2, Res: Int64;
+  FomulaPair: TPair<string, RMonkeyFormula>;
+  known: TDictionary<string,int64>;
+begin
+  result := 0;
+  known := TDictionary<string,int64>.Create(KnownNumbers);
+
+  while true do
+  begin
+    for FomulaPair in Formulas do
+    begin
+      if known.ContainsKey(FomulaPair.Key) then
+        Continue;
+
+      if not (known.TryGetValue(FomulaPair.Value.part1, Val1) and known.TryGetValue(FomulaPair.Value.part2, Val2)) then
+        Continue;
+
+      Res := CalcSimpleFormula(Val1, Val2, FomulaPair.Value.operation);
+      known.Add(FomulaPair.Key, Res);
+      if FomulaPair.Key = 'root' then
+        Exit(res);
+    end;
+  end;
+end;
+
+function TAdventOfCodeDay21.SolveB: Variant;
+var
+  FomulaPair: TPair<string, RMonkeyFormula>;
+  Formula: RMonkeyFormula;
+  Val1, Val2, Res, ToCalc: Int64;
+  s, CalcFrom: String;
+  known: TDictionary<string,int64>;
+  DidCalc: boolean;
+begin
+  known := TDictionary<string,int64>.Create(KnownNumbers);
+  known.Remove('humn');
+
+  DidCalc := True;
+  while DidCalc do
+  begin
+    DidCalc := False;
+    for FomulaPair in Formulas do
+    begin
+      if known.ContainsKey(FomulaPair.Key) then
+        Continue;
+
+      if not (known.TryGetValue(FomulaPair.Value.part1, Val1) and known.TryGetValue(FomulaPair.Value.part2, Val2)) then
+        Continue;
+
+      Res := CalcSimpleFormula(Val1, Val2, FomulaPair.Value.operation);
+      known.Add(FomulaPair.Key, Res);
+      DidCalc := True;
+    end;
+  end;
+
+  Formula := Formulas['root'];
+  if known.TryGetValue(Formula.part1, ToCalc) then
+    CalcFrom := Formula.Part2
+  else if known.TryGetValue(Formula.part2, ToCalc) then
+    CalcFrom := Formula.part1;
+
+  while CalcFrom <> 'humn'  do
+  begin
+    Formula := Formulas[CalcFrom];
+
+    if not known.TryGetValue(Formula.part1, Val1) then
+    begin
+      Val2 := Known[Formula.part2];
+      case Formula.operation of
+        Add: ToCalc := ToCalc - Val2;
+        Subtract: ToCalc := ToCalc + Val2;
+        Multiply: ToCalc := Round(ToCalc/Val2);
+        Divide: ToCalc := ToCalc * Val2;
+      end;
+      known.Add(CalcFrom, ToCalc);
+      CalcFrom := Formula.part1;
+    end
+    else
+    if not known.TryGetValue(Formula.part2, Val2) then
+    begin
+      Val1 := Known[Formula.part1];
+      case Formula.operation of
+        Add: ToCalc := ToCalc - Val1;
+        Subtract: ToCalc := Val1 - ToCalc;
+        Multiply: ToCalc := Round(ToCalc/Val1);
+        Divide: ToCalc := Round(Val1/ToCalc);
+      end;
+
+      known.Add(CalcFrom, ToCalc);
+      CalcFrom := Formula.part2;
+    end
+  end;
+
+  Result := ToCalc;
+end;
+
+{$ENDREGION}
 
 {$REGION 'TAdventOfCodeDay'}
 //procedure TAdventOfCodeDay.BeforeSolve;
@@ -2364,6 +2538,7 @@ RegisterClasses([
   TAdventOfCodeDay1, TAdventOfCodeDay2, TAdventOfCodeDay3, TAdventOfCodeDay4, TAdventOfCodeDay5,
   TAdventOfCodeDay6, TAdventOfCodeDay7, TAdventOfCodeDay8, TAdventOfCodeDay9, TAdventOfCodeDay10,
   TAdventOfCodeDay11,TAdventOfCodeDay12,TAdventOfCodeDay13,TAdventOfCodeDay14,TAdventOfCodeDay15,
-  TAdventOfCodeDay16,TAdventOfCodeDay17,TAdventOfCodeDay18,TAdventOfCodeDay19,TAdventOfCodeDay20]);
+  TAdventOfCodeDay16,TAdventOfCodeDay17,TAdventOfCodeDay18,TAdventOfCodeDay19,TAdventOfCodeDay20,
+  TAdventOfCodeDay21]);
 
 end.
