@@ -7,7 +7,7 @@ uses
   System.Net.HttpClient, System.Net.urlclient, system.Generics.Defaults, uAocConfig, vcl.Dialogs, system.uiTypes;
 
 type TAdventOfCodeRef = class of TAdventOfCode;
-type TDirection = (Up = 0, Right, Down, Left);
+type TDirection = (Right = 0, Down, Left, up);
 
 type AOCUtils = class
   public

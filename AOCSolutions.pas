@@ -280,6 +280,12 @@ end;
     function SolveB: Variant; override;
   end;
 
+  TAdventOfCodeDay22 = class(TAdventOfCode)
+  protected
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
+
 
 //  TAdventOfCodeDay = class(TAdventOfCode)
 //  protected
@@ -2414,6 +2420,196 @@ begin
 end;
 
 {$ENDREGION}
+{$REGION 'TAdventOfCodeDay22'}
+function TAdventOfCodeDay22.SolveA: Variant;
+var
+  i, x,y: Integer;
+  s: String;
+  Split: TStringDynArray;
+  PlayerPosition, NewPoint: TPosition;
+  Val: Boolean;
+  Grid: TDictionary<TPosition, boolean>;
+  Facing, tmpDirection: uAOCUtils.TDirection;
+begin
+  PlayerPosition := PlayerPosition.SetIt(0,0);
+  Grid := TDictionary<TPosition, boolean>.Create;
+  for y := 0 to FInput.Count -3 do
+    for x := 1 to Length(FInput[y]) do
+    begin
+      if FInput[y][x] = ' ' then
+        Continue;
+      NewPoint := NewPoint.SetIt(x, y+1);
+      Grid.Add(NewPoint, FInput[y][x] = '.');
+
+      if PlayerPosition.x = 0 then
+        PlayerPosition := NewPoint;
+    end;
+
+  s := FInput[FInput.Count-1];
+  s := s.Replace('L', '|L|', [rfReplaceAll]).Replace('R', '|R|', [rfReplaceAll]);
+  Split := SplitString(s, '|');
+
+  Facing := Right;
+  for s in Split do
+  begin
+    if s = 'R' then
+    begin
+      Facing := uAOCUtils.TDirection((Ord(Facing)+1) mod 4);
+      Continue;
+    end
+    else if s = 'L' then
+    begin
+      Facing := uAOCUtils.TDirection((Ord(Facing)+3) mod 4);
+      Continue;
+    end;
+
+    for i := 1 to StrToInt(s) do
+    begin
+      NewPoint := PlayerPosition.Clone.ApplyDirection(Facing);
+      if not Grid.ContainsKey(NewPoint) then
+      begin
+        tmpDirection := uAOCUtils.TDirection((Ord(Facing)+2) mod 4);
+        NewPoint := PlayerPosition.Clone;
+        while Grid.ContainsKey(NewPoint.Clone.ApplyDirection(tmpDirection)) do
+          NewPoint := NewPoint.ApplyDirection(tmpDirection);
+      end;
+
+      if Grid.TryGetValue(NewPoint, Val) then
+      begin
+        if Val then
+          PlayerPosition := NewPoint
+        else
+          break;
+      end
+    end;
+  end;
+
+  Result := 1000 * PlayerPosition.Y + 4 * PlayerPosition.X +  Ord(Facing);
+  Grid.Free;
+end;
+
+type
+  rWrapRule = Record
+    X, Y: integer; // Topleft coord of current block
+    CurrentFacing, NewFacing: uAOCUtils.TDirection; // CurrentFacing + NewFacing
+    X_Const, X_AddOffset, X_RemoveOffset: integer; // Const = Hardcoded new coord; AddOffset = toprow + add offset;
+    Y_Const, Y_AddOffset, Y_RemoveOffset: integer; // RemoveOffset = bottomrow + RemoveOffset
+  End;
+
+const WrapRules: array[0..13] of rWrapRule = (
+// Block A
+(x:50; y:0; CurrentFacing:Up; NewFacing:Right; X_Const:1; X_AddOffset:0; X_RemoveOffset:0; Y_Const:0; Y_AddOffset:151; Y_RemoveOffset:0),
+(x:50; y:0; CurrentFacing:Left; NewFacing:Right; X_Const:1; X_AddOffset:0; X_RemoveOffset:0; Y_Const:0; Y_AddOffset:0; Y_RemoveOffset:150),
+// Block B
+(x:100; y:0; CurrentFacing:Up; NewFacing:Up; X_Const:0; X_AddOffset:1; X_RemoveOffset:0; Y_Const:200; Y_AddOffset:0; Y_RemoveOffset:0),
+(x:100; y:0; CurrentFacing:Down; NewFacing:Left; X_Const:100; X_AddOffset:0; X_RemoveOffset:0; Y_Const:0; Y_AddOffset:51; Y_RemoveOffset:0),
+(x:100; y:0; CurrentFacing:Right; NewFacing:Left; X_Const:100; X_AddOffset:0; X_RemoveOffset:0; Y_Const:0; Y_AddOffset:0; Y_RemoveOffset:150),
+// Block C
+(x:50; y:50; CurrentFacing:Left; NewFacing:Down; X_Const:0; X_AddOffset:1; X_RemoveOffset:0; Y_Const:101; Y_AddOffset:0; Y_RemoveOffset:0),
+(x:50; y:50; CurrentFacing:Right; NewFacing:Up; X_Const:0; X_AddOffset:101; X_RemoveOffset:0; Y_Const:50; Y_AddOffset:0; Y_RemoveOffset:0),
+// Block D
+(x:0; y:100; CurrentFacing:Up; NewFacing:Right; X_Const:51; X_AddOffset:0; X_RemoveOffset:0; Y_Const:0; Y_AddOffset:52; Y_RemoveOffset:0),
+(x:0; y:100; CurrentFacing:Left; NewFacing:Right; X_Const:51; X_AddOffset:0; X_RemoveOffset:0; Y_Const:0; Y_AddOffset:0; Y_RemoveOffset:50),
+// Block E
+(x:50; y:100; CurrentFacing:Right; NewFacing:Left; X_Const:150; X_AddOffset:0; X_RemoveOffset:0; Y_Const:0; Y_AddOffset:0; Y_RemoveOffset:50),
+(x:50; y:100; CurrentFacing:Down; NewFacing:Left; X_Const:50; X_AddOffset:0; X_RemoveOffset:0; Y_Const:0; Y_AddOffset:151; Y_RemoveOffset:0),
+// Block F
+(x:0; y:150; CurrentFacing:Left; NewFacing:Down; X_Const:0; X_AddOffset:51; X_RemoveOffset:0; Y_Const:1; Y_AddOffset:0; Y_RemoveOffset:0),
+(x:0; y:150; CurrentFacing:Down; NewFacing:Down; X_Const:0; X_AddOffset:101; X_RemoveOffset:0; Y_Const:1; Y_AddOffset:0; Y_RemoveOffset:0),
+(x:0; y:150; CurrentFacing:Right; NewFacing:up; X_Const:0; X_AddOffset:51; X_RemoveOffset:0; Y_Const:150; Y_AddOffset:0; Y_RemoveOffset:0));
+
+function TAdventOfCodeDay22.SolveB: Variant;
+var
+  OffSet, i, x,y: Integer;
+  s: String;
+  Split: TStringDynArray;
+  PlayerPosition, NewPoint: TPosition;
+  Val: Boolean;
+  Grid: TDictionary<TPosition, boolean>;
+  Facing, OldFacing: uAOCUtils.TDirection;
+  Rule: rWrapRule;
+begin
+  PlayerPosition := PlayerPosition.SetIt(0,0);
+  Grid := TDictionary<TPosition, boolean>.Create;
+  for y := 0 to FInput.Count -3 do
+    for x := 1 to Length(FInput[y]) do
+    begin
+      if FInput[y][x] = ' ' then
+        Continue;
+      NewPoint := NewPoint.SetIt(x, y+1);
+      Grid.Add(NewPoint, FInput[y][x] = '.');
+
+      if PlayerPosition.x = 0 then
+        PlayerPosition := NewPoint;
+    end;
+
+  s := FInput[FInput.Count-1];
+  s := s.Replace('L', '|L|', [rfReplaceAll]).Replace('R', '|R|', [rfReplaceAll]);
+  Split := SplitString(s, '|');
+
+  Facing := Right;
+  for s in Split do
+  begin
+    if s = 'R' then
+    begin
+      Facing := uAOCUtils.TDirection((Ord(Facing)+1) mod 4);
+      Continue;
+    end
+    else if s = 'L' then
+    begin
+      Facing := uAOCUtils.TDirection((Ord(Facing)+3) mod 4);
+      Continue;
+    end;
+
+    for i := 1 to StrToInt(s) do
+    begin
+      NewPoint := PlayerPosition.Clone.ApplyDirection(Facing);
+      OldFacing := Facing;
+      if not Grid.ContainsKey(NewPoint) then
+      begin
+        for Rule in WrapRules do
+          if InRange(PlayerPosition.x, Rule.X+1, Rule.X+50) and InRange(PlayerPosition.y, Rule.y+1, Rule.y+50) and (Facing = Rule.CurrentFacing) then
+          begin
+            OffSet := PlayerPosition.x - Rule.X -1;
+            if Facing in [Left, Right] then
+              OffSet := PlayerPosition.y - Rule.Y -1;
+
+            Facing := Rule.NewFacing;
+
+            NewPoint.X := Rule.X_Const;
+            if Rule.X_AddOffset > 0 then
+              NewPoint.X := Rule.X_AddOffset + OffSet
+            else if Rule.X_RemoveOffset > 0 then
+              NewPoint.X := Rule.X_RemoveOffset - OffSet;
+
+            NewPoint.Y := Rule.Y_Const;
+            if Rule.Y_AddOffset > 0 then
+              NewPoint.Y := Rule.Y_AddOffset + OffSet
+            else if Rule.Y_RemoveOffset > 0 then
+              NewPoint.Y := Rule.Y_RemoveOffset - OffSet;
+
+            Break;
+          end;
+      end;
+
+      if Grid.TryGetValue(NewPoint, Val) then
+      begin
+        if Val then
+          PlayerPosition := NewPoint
+        else
+        begin
+          Facing := OldFacing;
+          break;
+        end;
+      end
+
+    end;
+  end;
+
+  Result := 1000 * PlayerPosition.Y + 4 * PlayerPosition.X +  Ord(Facing);
+  Grid.Free;
+end;
+{$ENDREGION}
 
 {$REGION 'TAdventOfCodeDay'}
 //procedure TAdventOfCodeDay.BeforeSolve;
@@ -2450,6 +2646,6 @@ RegisterClasses([
   TAdventOfCodeDay6, TAdventOfCodeDay7, TAdventOfCodeDay8, TAdventOfCodeDay9, TAdventOfCodeDay10,
   TAdventOfCodeDay11,TAdventOfCodeDay12,TAdventOfCodeDay13,TAdventOfCodeDay14,TAdventOfCodeDay15,
   TAdventOfCodeDay16,TAdventOfCodeDay17,TAdventOfCodeDay18,TAdventOfCodeDay19,TAdventOfCodeDay20,
-  TAdventOfCodeDay21]);
+  TAdventOfCodeDay21,TAdventOfCodeDay22]);
 
 end.
