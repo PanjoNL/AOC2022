@@ -286,6 +286,14 @@ end;
     function SolveB: Variant; override;
   end;
 
+  TAdventOfCodeDay23 = class(TAdventOfCode)
+  private
+    PartA, PartB: Int64;
+  protected
+    procedure BeforeSolve; override;
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
 
 //  TAdventOfCodeDay = class(TAdventOfCode)
 //  protected
@@ -2610,6 +2618,166 @@ begin
   Grid.Free;
 end;
 {$ENDREGION}
+{$REGION 'TAdventOfCodeDay'}
+const
+  Offsets: Array[0..7] of TPoint = (
+    (X:-1; Y:-1), (X: 0; Y:-1), (X: 1; Y:-1),
+    (X:-1; Y: 0),               (X: 1; Y: 0),
+    (X:-1; Y: 1), (X: 0; Y: 1), (X: 1; Y: 1));
+  RequierdOffsets: array[0..3] of array[0..2] of Integer = (
+    (0,1,2), (5,6,7), (0,3,5), (2,4,7));
+
+procedure TAdventOfCodeDay23.BeforeSolve;
+var
+  Grid, Blocked: TDictionary<TPoint,Boolean>;
+  Changes: TDictionary<TPoint,TPoint>;
+
+    function SpotIsFree2(CurrentPoint, Offset: TPoint): Boolean;
+    var
+      PointToCheck: Tpoint;
+    begin
+      PointToCheck := TPoint.Create(CurrentPoint);
+      PointToCheck.Offset(Offset);
+      Result := not Grid.ContainsKey(PointToCheck)
+    end;
+
+  function CreatePointWithOffset(aPoint: TPoint; Offset, OffsetIndex: integer): TPoint;
+  begin
+    Result := TPoint.Create(aPoint);
+    Result.Offset(Offsets[RequierdOffsets[Offset][OffsetIndex]]);
+  end;
+    
+  function GetNeighbors(aPoint: TPoint): integer;
+  var
+    i: Integer;
+  begin
+    Result := 0;
+    for i := 0 to 7 do
+      if not SpotIsFree2(aPoint, Offsets[i]) then
+        Result := Result + 1 shl i;
+  end;
+
+  procedure Mark(aOld, aNew: TPoint);
+  begin
+    // Not moving or already blocked
+    if (aNew = aOld) or Blocked.ContainsKey(aNew) then
+      exit;
+
+    // Found a change to the same spot, mark as blocked and revert other change
+    if Changes.ContainsKey(aNew) then
+    begin
+      Blocked.Add(aNew, False);
+      Changes.Remove(aNew);
+      exit;
+    end;
+
+    // Mark change
+    Changes.Add(aNew, aOld);
+  end;
+
+  function CalcPartA: integer; 
+  var
+    MinX, MaxX, MinY, MaxY: integer;
+    Point: TPoint;
+  begin
+    MinX := MaxInt;
+    MinY := MaxInt;
+    MaxX := -MaxInt;
+    Maxy := -MaxInt;
+
+    for point in Grid.Keys do
+    begin
+      MaxX := Max(MaxX, point.x);
+      MinX := Min(MinX, point.x);
+      MaxY := Max(MaxY, point.y);
+      MinY := Min(MinY, point.y);
+    end;
+
+    Result := (MaxX-MinX+1)*(MaxY-MinY+1) - Grid.Count;
+  end;
+
+var
+  Round, OffsetIndex: integer;
+  x, y, Mask, Neighbors: integer;
+  Change: TPair<TPoint,TPoint>;
+  point: TPoint;
+  SpotFound: boolean;
+begin
+  inherited;
+  
+  Grid := TDictionary<TPoint,Boolean>.Create;
+  Blocked := TDictionary<TPoint,Boolean>.Create;
+  Changes := TDictionary<TPoint,TPoint>.Create;
+
+  for y := 0 to FInput.Count-1 do
+    for x := 1 to Length(FInput[0]) do
+      if FInput[y][x] = '#' then
+         Grid.Add(TPoint.Create(x, y), true);
+
+  Round := 0;
+  PartB := 0;
+    
+  while PartB = 0 do
+  begin
+    inc(Round);
+    Changes.Clear;
+    Blocked.Clear;
+    
+    for point in Grid.Keys do
+    begin
+      Neighbors := GetNeighbors(point);
+      SpotFound := false;
+
+      if Neighbors > 0 then
+        for x := 0 to 3 do
+        begin
+          OffsetIndex := (Round+x-1) mod 4;
+          Mask := (1 shl RequierdOffsets[OffsetIndex][0]) + (1 shl RequierdOffsets[OffsetIndex][1]) + (1 shl RequierdOffsets[OffsetIndex][2]);
+          SpotFound := (Neighbors and Mask) = 0;
+
+          if SpotFound then
+          begin
+            Mark(point, CreatePointWithOffset(Point, OffsetIndex, 1));
+            break;
+          end;
+        end;
+
+       if not SpotFound then
+         Mark(point, point);
+    end;
+
+    if Changes.Count = 0 then
+    begin
+      PartB := Round;
+      Break;
+    end;
+    
+    for Change in Changes do
+    begin
+      Grid.Remove(Change.Value);
+      Grid.Add(Change.Key, true);
+    end;
+
+    if Round = 10 then
+      PartA := CalcPartA;
+  end;
+
+  Grid.Free;
+  Blocked.Free; 
+  Changes.Free;
+end;
+
+function TAdventOfCodeDay23.SolveA: Variant;
+begin
+  Result := PartA;
+end;
+
+function TAdventOfCodeDay23.SolveB: Variant;
+begin
+  Result := PartB; 
+end;
+{$ENDREGION}
+
 
 {$REGION 'TAdventOfCodeDay'}
 //procedure TAdventOfCodeDay.BeforeSolve;
@@ -2646,6 +2814,6 @@ RegisterClasses([
   TAdventOfCodeDay6, TAdventOfCodeDay7, TAdventOfCodeDay8, TAdventOfCodeDay9, TAdventOfCodeDay10,
   TAdventOfCodeDay11,TAdventOfCodeDay12,TAdventOfCodeDay13,TAdventOfCodeDay14,TAdventOfCodeDay15,
   TAdventOfCodeDay16,TAdventOfCodeDay17,TAdventOfCodeDay18,TAdventOfCodeDay19,TAdventOfCodeDay20,
-  TAdventOfCodeDay21,TAdventOfCodeDay22]);
+  TAdventOfCodeDay21,TAdventOfCodeDay22,TAdventOfCodeDay23]);
 
 end.
