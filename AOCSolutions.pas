@@ -295,6 +295,25 @@ end;
     function SolveB: Variant; override;
   end;
 
+  rBlizard = record
+    OffsetX, OffsetY: Integer;
+    Position: TPoint;
+  end;
+
+  TAdventOfCodeDay24 = class(TAdventOfCode)
+  private
+    maxX, MaxY, PartA: Integer;
+    Blizards: TDictionary<TPoint,rBlizard>;
+    PlayerPosition, ExitPosition: TPoint;
+    function FindPath(aFrom, aTo: TPoint; aTimePassed: integer): integer;
+  protected
+    procedure BeforeSolve; override;
+    procedure AfterSolve; override;
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
+
+
 //  TAdventOfCodeDay = class(TAdventOfCode)
 //  protected
 //    procedure BeforeSolve; override;
@@ -3046,7 +3065,333 @@ begin
   Result := PartB; 
 end;
 {$ENDREGION}
+{$REGION 'TAdventOfCodeDay24'}
+procedure TAdventOfCodeDay24.BeforeSolve;
+var
+  x, y: Integer;
+  s: string;
+  Blizard: rBlizard;
+begin
+  inherited;
 
+  Blizards := TDictionary<TPoint,rBlizard>.Create();
+  maxX := Length(FInput[0])-2;
+  MaxY := FInput.Count -2;
+
+  for y := 0 to FInput.Count -1 do
+    for x := 0 to Length(FInput[0])-1 do
+    begin
+      s := FInput[y][x+1];
+
+      if s = '#' then
+        Continue;
+      if (y = 0) and (s = '.') then
+        PlayerPosition := TPoint.Create(x-1,y-1);
+      if (y = FInput.Count-1) and (s = '.') then
+        ExitPosition := TPoint.Create(x-1,y-1);
+      if s = '.' then
+        Continue;
+
+      Blizard.Position := TPoint.Create(x-1,y-1);
+      Blizard.OffsetX := 0;
+      Blizard.OffsetY := 0;
+      case IndexStr(s, ['<', '>', '^', 'v']) of
+        0: Blizard.OffsetX := -1;
+        1: Blizard.OffsetX := 1;
+        2: Blizard.OffsetY := -1;
+        3: Blizard.OffsetY := 1;
+      end;
+      Blizards.Add(Blizard.Position, Blizard);
+    end;
+end;
+
+procedure TAdventOfCodeDay24.AfterSolve;
+begin
+  inherited;
+  Blizards.Free;
+end;
+
+function TAdventOfCodeDay24.FindPath(aFrom, aTo: TPoint; aTimePassed: integer): integer;
+type
+  VallyWork = record
+    TimePassed: integer;
+    Position: TPoint;
+  end;
+var
+  i, j: Integer;
+  s: String;
+  Blizard: rBlizard;
+  BlizardOrg: TPoint;
+  Comparer : IComparer<VallyWork>;
+  Queue: PriorityQueue<VallyWork>;
+  Work, NewWork: VallyWork;
+  CanMove: boolean;
+  Seen: TDictionary<string, boolean>;
+begin
+  Result := 0;
+  Seen := TDictionary<string, boolean>.Create;
+  try
+    Comparer := TComparer<VallyWork>.Construct(
+    function(const Left, Right: VallyWork): integer
+    begin
+      Result := Sign(Left.TimePassed - Right.TimePassed);
+    end);
+
+    Queue := PriorityQueue<VallyWork>.Create(Comparer,Comparer);
+    Work.Position := aFrom;
+    Work.TimePassed := aTimePassed;
+    Queue.Enqueue(Work);
+
+    while Queue.Count > 0 do
+    begin
+      Work := Queue.Dequeue;
+
+      s := Format('%d_%d_%d', [Work.Position.X, Work.Position.Y,  Work.TimePassed]);
+      if Seen.ContainsKey(s) then
+        Continue;
+      Seen.Add(s, True);
+
+      for i := 0 to 4 do
+      begin
+        NewWork.Position := TPoint.Create(Work.Position);
+        NewWork.Position.Offset(DeltaX[i], DeltaY[i]);
+        NewWork.TimePassed := Work.TimePassed + 1;
+
+        if NewWork.Position = aTo then
+          Exit(NewWork.TimePassed);
+
+        if (NewWork.Position <> PlayerPosition) and (NewWork.Position <> ExitPosition) then
+          if (NewWork.Position.X < 0) or (NewWork.Position.Y < 0) or (NewWork.Position.X > MaxX) or (NewWork.Position.Y > MaxY) then
+            Continue;
+
+        CanMove := True;
+        for j := 0 to 3 do
+        begin
+          BlizardOrg := TPoint.Create(NewWork.Position);
+          BlizardOrg.X := (BlizardOrg.X + maxX + DeltaX[j] * (NewWork.TimePassed mod maxX)) mod MaxX;
+          BlizardOrg.Y := (BlizardOrg.Y + maxY + DeltaY[j] * (NewWork.TimePassed mod maxY)) mod MaxY;
+
+          if Blizards.TryGetValue(BlizardOrg, Blizard) then
+            if ((Blizard.OffsetX <> 0) and (Blizard.OffsetX + DeltaX[j] = 0)) or ((Blizard.OffsetY <> 0) and (Blizard.OffsetY + DeltaY[j] = 0)) then
+            begin
+              CanMove := False;
+              break
+            end;
+        end;
+
+        if CanMove then
+          Queue.Enqueue(NewWork);
+      end;
+    end;
+  finally
+    Seen.Free;
+  end;
+end;
+
+
+function TAdventOfCodeDay24.SolveA: Variant;
+//const
+//  DeltaX: Array[0..4] of integer = (1, -1, 0, 0, 0);
+//  DeltaY: Array[0..4] of integer = (0, 0, -1, 1, 0);
+//var
+//  x,y, maxX, MaxY, i, j: Integer;
+//  s: String;
+//  Split: TStringDynArray;
+//  Blizards: TDictionary<TPoint,rBlizard>;
+//  Blizard: rBlizard;
+//  PlayerPosition, ExitPosition, BlizardOrg: TPoint;
+//  c: Char;
+//  PartBComparer : IComparer<VallyWork>;
+//  Queue: PriorityQueue<VallyWork>;
+//  Work, NewWork: VallyWork;
+//  CanMove: boolean;
+//  Seen: TDictionary<string, boolean>;
+begin
+  PartA := FindPath(PlayerPosition, ExitPosition, 0);
+  Result := PartA;
+
+
+//  Blizards := TDictionary<TPoint,rBlizard>.Create();
+//  Seen := TDictionary<string, boolean>.Create;
+//  maxX := Length(FInput[0])-2;
+//  MaxY := FInput.Count -2;
+//
+//  for y := 0 to FInput.Count -1 do
+//    for x := 0 to Length(FInput[0])-1 do
+//    begin
+//      s := FInput[y][x+1];
+//
+//      if s = '#' then
+//        Continue;
+//      if (y = 0) and (s = '.') then
+//        PlayerPosition := TPoint.Create(x-1,y-1);
+//      if (y = FInput.Count-1) and (s = '.') then
+//        ExitPosition := TPoint.Create(x-1,y-1);
+//      if s = '.' then
+//        Continue;
+//
+//      Blizard.Position := TPoint.Create(x-1,y-1);
+//      Blizard.OffsetX := 0;
+//      Blizard.OffsetY := 0;
+//      case IndexStr(s, ['<', '>', '^', 'v']) of
+//        0: Blizard.OffsetX := -1;
+//        1: Blizard.OffsetX := 1;
+//        2: Blizard.OffsetY := -1;
+//        3: Blizard.OffsetY := 1;
+//      end;
+//      Blizards.Add(Blizard.Position, Blizard);
+//    end;
+//
+//   PartBComparer := TComparer<VallyWork>.Construct(
+//    function(const Left, Right: VallyWork): integer
+//    begin
+//      Result := Sign(Left.TimePassed - Right.TimePassed);
+//    end);
+//
+//  Queue := PriorityQueue<VallyWork>.Create(PartBComparer,PartBComparer);
+//  Work.Position := PlayerPosition;
+//  Work.TimePassed := 0;
+//  Queue.Enqueue(Work);
+//
+//  while Queue.Count > 0 do
+//  begin
+//    Work := Queue.Dequeue;
+//
+////    283 to low
+////    284
+//
+//    s := Format('%d_%d_%d', [Work.Position.X, Work.Position.Y,  Work.TimePassed]);
+//    if Seen.ContainsKey(s) then
+//      Continue;
+//    Seen.Add(s, True);
+//
+// //   Writeln(Work.Position.X, ' ',  Work.Position.Y, ' ',  Work.TimePassed);
+//
+//    for i := 0 to 4 do
+//    begin
+//      NewWork.Position := TPoint.Create(Work.Position);
+//      NewWork.Position.Offset(DeltaX[i], DeltaY[i]);
+//      NewWork.TimePassed := Work.TimePassed + 1;
+//
+//      if NewWork.Position = ExitPosition then
+//        Exit(NewWork.TimePassed);
+//
+//      if (NewWork.Position <> PlayerPosition) and (NewWork.Position <> ExitPosition) then
+//        if (NewWork.Position.X < 0) or (NewWork.Position.Y < 0) or (NewWork.Position.X > MaxX) or (NewWork.Position.Y > MaxY) then
+//          Continue;
+//
+//      CanMove := True;
+//      for j := 0 to 3 do
+//      begin
+//        BlizardOrg := TPoint.Create(NewWork.Position);
+//          BlizardOrg.X := (BlizardOrg.X + (maxX) + DeltaX[j] * (NewWork.TimePassed mod (maxX))) mod(MaxX);
+//
+//          BlizardOrg.Y := (BlizardOrg.Y + (maxY) + DeltaY[j] * (NewWork.TimePassed mod (maxY))) mod(MaxY );
+//
+////
+//        if (NewWork.Position <> PlayerPosition) and (NewWork.Position <> ExitPosition) then
+//        begin
+//
+//        Assert(BlizardOrg.X >= 0);
+//        Assert(BlizardOrg.X <= maxX);
+//        Assert(BlizardOrg.Y >= 0);
+//        Assert(BlizardOrg.Y <= maxY);
+//
+//        end;
+//
+//
+//        if Blizards.TryGetValue(BlizardOrg, Blizard) then
+//        begin
+//          if (Blizard.OffsetX <> 0) and (Blizard.OffsetX + DeltaX[j] = 0) then
+//          begin
+//            CanMove := False;
+//          end;
+//          if (Blizard.OffsetY <> 0) and (Blizard.OffsetY + DeltaY[j] = 0) then
+//          begin
+//            CanMove := False;
+//          end;
+//        end;
+//
+//         if not CanMove then
+//          Break;
+//      end;
+//
+//      if CanMove then
+//        Queue.Enqueue(NewWork);
+//    end;
+//
+//
+//
+//
+//
+//  end;
+
+
+end;
+
+function TAdventOfCodeDay24.SolveB: Variant;
+const
+  DeltaX: Array[0..4] of integer = (1, -1, 0, 0, 0);
+  DeltaY: Array[0..4] of integer = (0, 0, -1, 1, 0);
+//var
+//  maxX, MaxY: Integer;
+//  Blizards: TDictionary<TPoint,rBlizard>;
+//  PlayerPosition, ExitPosition, BlizardOrg: TPoint;
+
+
+
+
+
+var
+  TimePassed: integer;
+//  Blizard: rBlizard;
+//  TimePassed: integer;
+//  c: Char;
+//  PartBComparer : IComparer<VallyWork>;
+//  Queue: PriorityQueue<VallyWork>;
+//  Work, NewWork: VallyWork;
+//  CanMove: boolean;
+//  Seen: TDictionary<string, boolean>;
+//
+//  x,y, i, j: integer;
+//  s: string;
+begin
+//  Blizards := TDictionary<TPoint,rBlizard>.Create();
+//  maxX := Length(FInput[0])-2;
+//  MaxY := FInput.Count -2;
+//
+//  for y := 0 to FInput.Count -1 do
+//    for x := 0 to Length(FInput[0])-1 do
+//    begin
+//      s := FInput[y][x+1];
+//
+//      if s = '#' then
+//        Continue;
+//      if (y = 0) and (s = '.') then
+//        PlayerPosition := TPoint.Create(x-1,y-1);
+//      if (y = FInput.Count-1) and (s = '.') then
+//        ExitPosition := TPoint.Create(x-1,y-1);
+//      if s = '.' then
+//        Continue;
+//
+//      Blizard.Position := TPoint.Create(x-1,y-1);
+//      Blizard.OffsetX := 0;
+//      Blizard.OffsetY := 0;
+//      case IndexStr(s, ['<', '>', '^', 'v']) of
+//        0: Blizard.OffsetX := -1;
+//        1: Blizard.OffsetX := 1;
+//        2: Blizard.OffsetY := -1;
+//        3: Blizard.OffsetY := 1;
+//      end;
+//      Blizards.Add(Blizard.Position, Blizard);
+//    end;
+
+  TimePassed := PartA;
+  TimePassed := FindPath(ExitPosition, PlayerPosition, TimePassed);
+  TimePassed := FindPath(PlayerPosition, ExitPosition, TimePassed);
+  Result := TimePassed
+end;
+{$ENDREGION}
 
 {$REGION 'TAdventOfCodeDay'}
 //procedure TAdventOfCodeDay.BeforeSolve;
@@ -3084,6 +3429,6 @@ RegisterClasses([
   TAdventOfCodeDay6, TAdventOfCodeDay7, TAdventOfCodeDay8, TAdventOfCodeDay9, TAdventOfCodeDay10,
   TAdventOfCodeDay11,TAdventOfCodeDay12,TAdventOfCodeDay13,TAdventOfCodeDay14,TAdventOfCodeDay15,
   TAdventOfCodeDay16,TAdventOfCodeDay17,TAdventOfCodeDay18,TAdventOfCodeDay19,TAdventOfCodeDay20,
-  TAdventOfCodeDay21,TAdventOfCodeDay22,TAdventOfCodeDay23]);
+  TAdventOfCodeDay21,TAdventOfCodeDay22,TAdventOfCodeDay23,TAdventOfCodeDay24]);
 
 end.
