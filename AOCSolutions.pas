@@ -313,14 +313,11 @@ end;
     function SolveB: Variant; override;
   end;
 
-
-//  TAdventOfCodeDay = class(TAdventOfCode)
-//  protected
-//    procedure BeforeSolve; override;
-//    procedure AfterSolve; override;
-//    function SolveA: Variant; override;
-//    function SolveB: Variant; override;
-//  end;
+  TAdventOfCodeDay25 = class(TAdventOfCode)
+  protected
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
 
   const
     DeltaX: Array[0..3] of integer = (1, -1, 0, 0);
@@ -3392,33 +3389,77 @@ begin
   Result := TimePassed
 end;
 {$ENDREGION}
+{$REGION 'TAdventOfCodeDay25'}
+function TAdventOfCodeDay25.SolveA: Variant;
 
-{$REGION 'TAdventOfCodeDay'}
-//procedure TAdventOfCodeDay.BeforeSolve;
-//begin
-//  inherited;
-//
-//end;
-//
-//procedure TAdventOfCodeDay.AfterSolve;
-//begin
-//  inherited;
-//
-//end;
-//
-//function TAdventOfCodeDay.SolveA: Variant;
-//var
-//  i: Integer;
-//  s: String;
-//  Split: TStringDynArray;
-//begin
-//
-//end;
-//
-//function TAdventOfCodeDay.SolveB: Variant;
-//begin
-////
-//end;
+  function SnafuToInt(aSnafu: string): int64;
+  var
+    aLenght: integer;
+    Base, i: int64;
+  begin
+    Result := 0;
+    aLenght := Length(aSnafu);
+    for i := 1 to aLenght do
+    begin
+      Base := Round(power(extended(5), extended(aLenght-i)));
+      Result := Result + (IndexStr(aSnafu[i], ['=','-','0','1','2']) -2) * Base
+    end;
+  end;
+
+  function IntToSnafu(aInt: Int64): string;
+  var
+    i, j, maxRem, Base, NextBase, SnafuBit: int64;
+  begin
+    Result := '';
+
+    for i := 25 downto 0 do
+    begin
+      Base := Round(power(extended(5), extended(i)));
+
+      maxRem := 0;
+      for j := i-1 downto 0 do
+      begin
+        NextBase := Round(power(extended(5), extended(j)));
+        maxRem := maxRem + 2 * NextBase;
+      end;
+
+      SnafuBit := 0;
+      if (abs(aInt - 2* Base) <= maxRem)  then
+        SnafuBit := 2
+      else if (abs(aInt - 1 * Base) <= maxRem) then
+        SnafuBit := 1
+      else if (abs(aInt + 1 * Base) <= maxRem) then
+        SnafuBit := -1
+      else if (abs(aInt + 2 * Base) <= maxRem) then
+        SnafuBit := -2;
+
+      aInt := aInt - SnafuBit * Base;
+
+      case SnafuBit of
+        -2: Result := Result + '=';
+        -1: Result := Result + '-';
+        0: Result := Result + IfThen(Result <> '', '0', '');
+        1: Result := Result + '1';
+        2: Result := Result + '2';
+      end;
+    end;
+  end;
+
+var
+  sum: Int64;
+  s: String;
+begin
+  sum := 0;
+  for s in FInput do
+    Sum := sum + SnafuToInt(s);
+
+  Result := IntToSnafu(Sum)
+end;
+
+function TAdventOfCodeDay25.SolveB: Variant;
+begin
+  Result := 'Blender started';
+end;
 {$ENDREGION}
 
 
@@ -3429,6 +3470,6 @@ RegisterClasses([
   TAdventOfCodeDay6, TAdventOfCodeDay7, TAdventOfCodeDay8, TAdventOfCodeDay9, TAdventOfCodeDay10,
   TAdventOfCodeDay11,TAdventOfCodeDay12,TAdventOfCodeDay13,TAdventOfCodeDay14,TAdventOfCodeDay15,
   TAdventOfCodeDay16,TAdventOfCodeDay17,TAdventOfCodeDay18,TAdventOfCodeDay19,TAdventOfCodeDay20,
-  TAdventOfCodeDay21,TAdventOfCodeDay22,TAdventOfCodeDay23,TAdventOfCodeDay24]);
+  TAdventOfCodeDay21,TAdventOfCodeDay22,TAdventOfCodeDay23,TAdventOfCodeDay24,TAdventOfCodeDay25]);
 
 end.
