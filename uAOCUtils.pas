@@ -6,8 +6,9 @@ uses
   System.SysUtils, System.Generics.Collections, AOCBase, RTTI, System.Classes, Math,
   System.Net.HttpClient, System.Net.urlclient, system.Generics.Defaults, uAocConfig, vcl.Dialogs, system.uiTypes;
 
-type TAdventOfCodeRef = class of TAdventOfCode;
-type TDirection = (Right = 0, Down, Left, up);
+type
+  TAdventOfCodeRef = class of TAdventOfCode;
+  TDirection = (Right = 0, Down, Left, up);
 
 type AOCUtils = class
   public
@@ -53,6 +54,7 @@ function OccurrencesOfChar(const S: string; const C: string): integer;
 function BitStringToInt(Const aBit: string): int64;
 function CountTrueBits(aInt: integer): integer;
 function InRange(const aTarget, aLeft, aRight: int64): boolean;
+function RotateDirection(aDirection: TDirection; aAmmount: integer): TDirection;
 
 Const
   MaxInt64: Int64 = 9223372036854775807;
@@ -329,6 +331,11 @@ end;
 function InRange(const aTarget, aLeft, aRight: int64): boolean;
 begin
   Result := (aTarget >= aLeft) and (aTarget <= aRight);
+end;
+
+function RotateDirection(aDirection: TDirection; aAmmount: integer): TDirection;
+begin
+  Result := TDirection((aAmmount + Ord(aDirection)) mod 4);
 end;
 
 

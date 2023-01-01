@@ -3,20 +3,23 @@ unit uAOCTests;
 interface
 
 uses
-  System.SysUtils, Winapi.Windows,
+  System.SysUtils, Winapi.Windows, system.Classes,
   uAocUtils, AocSolutions, AOCBase, uAOCConfig;
 
-type AOCTest = record
-  AOCClass: TAdventOfCodeRef;
-  ExpectedSolutionA, ExpectedSolutionB, OverRidenTestInput: String;
+type
+  AOCTest = record
+    AOCClass: TAdventOfCodeRef;
+    ExpectedSolutionA, ExpectedSolutionB: String;
+    LoadOverridenTestData: TLoadOverridenTestData
 end;
 
 type AOCTests = class
 public
+  Class procedure Day22Extra(aInput: TStrings);
   Class procedure RunTests(aConfig: TAOCConfig);
 end;
 
-Const AOCTestData: array[0..24] of AOCTest =
+Const AOCTestData: array[0..25] of AOCTest =
 (
  (AOCClass: TAdventOfCodeDay1; ExpectedSolutionA: '69289'; ExpectedSolutionB: '205615'),
  (AOCClass: TAdventOfCodeDay2; ExpectedSolutionA: '17189'; ExpectedSolutionB: '13490'),
@@ -40,12 +43,32 @@ Const AOCTestData: array[0..24] of AOCTest =
  (AOCClass: TAdventOfCodeDay20;ExpectedSolutionA: '8302'; ExpectedSolutionB: '656575624777'),
  (AOCClass: TAdventOfCodeDay21;ExpectedSolutionA: '168502451381566'; ExpectedSolutionB: '3343167719435'),
  (AOCClass: TAdventOfCodeDay22;ExpectedSolutionA: '133174'; ExpectedSolutionB: '15410'),
+ (AOCClass: TAdventOfCodeDay22;ExpectedSolutionA: '6032'; ExpectedSolutionB: '5031'; LoadOverridenTestData: AOCTests.Day22Extra),
  (AOCClass: TAdventOfCodeDay23;ExpectedSolutionA: '3684'; ExpectedSolutionB: '862'),
  (AOCClass: TAdventOfCodeDay24;ExpectedSolutionA: '332'; ExpectedSolutionB: '942'),
  (AOCClass: TAdventOfCodeDay25;ExpectedSolutionA: '2-10==12-122-=1-1-22'; ExpectedSolutionB: '')
  );
 
 implementation
+
+class procedure AOCTests.Day22Extra(aInput: TStrings);
+begin
+  aInput.Clear;
+  aInput.Add('        ...#    ');
+  aInput.Add('        .#..    ');
+  aInput.Add('        #...    ');
+  aInput.Add('        ....    ');
+  aInput.Add('...#.......#    ');
+  aInput.Add('........#...    ');
+  aInput.Add('..#....#....    ');
+  aInput.Add('..........#.    ');
+  aInput.Add('        ...#....');
+  aInput.Add('        .....#..');
+  aInput.Add('        .#......');
+  aInput.Add('        ......#.');
+  aInput.Add('                ');
+  aInput.Add('10R5L5R10L4R5L5');
+end;
 
 class procedure AOCTests.RunTests(aConfig: TAOCConfig);
 
@@ -74,7 +97,7 @@ begin
 
     StartTickTest := GetTickCount;
     AdventOfCode := Test.AOCClass.Create(aConfig);
-    AdventOfCode.Test(SolutionA, SolutionB, Test.OverRidenTestInput);
+    AdventOfCode.Test(SolutionA, SolutionB, Test.LoadOverridenTestData);
     AdventOfCode.Free;
 
     _Check('Part a', Test.ExpectedSolutionA, SolutionA);

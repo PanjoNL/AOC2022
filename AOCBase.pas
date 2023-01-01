@@ -4,10 +4,13 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, system.Diagnostics, ClipBrd, system.UITypes, uAocConfig;
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, system.Diagnostics, ClipBrd, system.UITypes,
+  uAocConfig;
 
-type TProcedureToRun = procedure of object;
-type TFunctionToRun = function: Variant of object;
+type
+  TProcedureToRun = procedure of object;
+  TFunctionToRun = function: Variant of object;
+  TLoadOverridenTestData = procedure(aInput: TStrings) of object;
 
 type TAdventOfCode = class(TPersistent)
   constructor Create(aConfig: TAOCConfig);
@@ -33,7 +36,7 @@ type TAdventOfCode = class(TPersistent)
   public
   { Public declarations }
     procedure Solve;
-    procedure Test(Out SolutionA, SolutionB: String; Const OverRidenTestInput: String);
+    procedure Test(Out SolutionA, SolutionB: String; Const LoadOverridenTestData: TLoadOverridenTestData);
   end;
 
 implementation
@@ -168,14 +171,11 @@ begin
   DoProcedure(AfterSolve, 'AfterSolve');
 end;
 
-procedure TAdventOfCode.Test(Out SolutionA, SolutionB: String; Const OverRidenTestInput: String);
+procedure TAdventOfCode.Test(Out SolutionA, SolutionB: String; LoadOverridenTestData: TLoadOverridenTestData);
 var Dummy: Int64;
 begin
-  if OverRidenTestInput <> '' then
-  begin
-    FInput.Clear;
-    FInput.Add(OverRidenTestInput);
-  end;
+  if Assigned(LoadOverridenTestData) then
+    LoadOverridenTestData(FInput);
 
   InternalSolve(SolutionA, SolutionB, Dummy, Dummy);
 end;

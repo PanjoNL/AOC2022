@@ -1,4 +1,4 @@
-unit AOCSolutions;
+        unit AOCSolutions;
 
 interface
 
@@ -281,7 +281,13 @@ end;
   end;
 
   TAdventOfCodeDay22 = class(TAdventOfCode)
+  private
+    Map: TDictionary<TPosition,Boolean>;
+    StartingPosition: TPosition;
+    Rules: TStringDynArray;
   protected
+    procedure BeforeSolve; override;
+    procedure AfterSolve; override;
     function SolveA: Variant; override;
     function SolveB: Variant; override;
   end;
@@ -2445,60 +2451,74 @@ end;
 
 {$ENDREGION}
 {$REGION 'TAdventOfCodeDay22'}
-function TAdventOfCodeDay22.SolveA: Variant;
+procedure TAdventOfCodeDay22.BeforeSolve;
 var
-  i, x,y: Integer;
-  s: String;
-  Split: TStringDynArray;
-  PlayerPosition, NewPoint: TPosition;
-  Val: Boolean;
-  Grid: TDictionary<TPosition, boolean>;
-  Facing, tmpDirection: uAOCUtils.TDirection;
+  s: string;
+  NewPoint: TPosition;
+  x,y: Integer;
 begin
-  PlayerPosition := PlayerPosition.SetIt(0,0);
-  Grid := TDictionary<TPosition, boolean>.Create;
+  inherited;
+
+  StartingPosition := StartingPosition.SetIt(0,0);
+  Map := TDictionary<TPosition, boolean>.Create;
   for y := 0 to FInput.Count -3 do
     for x := 1 to Length(FInput[y]) do
     begin
       if FInput[y][x] = ' ' then
         Continue;
       NewPoint := NewPoint.SetIt(x, y+1);
-      Grid.Add(NewPoint, FInput[y][x] = '.');
+      Map.Add(NewPoint, FInput[y][x] = '.');
 
-      if PlayerPosition.x = 0 then
-        PlayerPosition := NewPoint;
+      if StartingPosition.x = 0 then
+        StartingPosition := NewPoint;
     end;
 
   s := FInput[FInput.Count-1];
   s := s.Replace('L', '|L|', [rfReplaceAll]).Replace('R', '|R|', [rfReplaceAll]);
-  Split := SplitString(s, '|');
+  Rules := SplitString(s, '|');
+end;
 
+procedure TAdventOfCodeDay22.AfterSolve;
+begin
+  inherited;
+  Map.Free;
+end;
+
+function TAdventOfCodeDay22.SolveA: Variant;
+var
+  i: Integer;
+  PlayerPosition, NewPoint: TPosition;
+  Val: Boolean;
+  s: string;
+  Facing, tmpDirection: uAOCUtils.TDirection;
+begin
+  PlayerPosition := StartingPosition;
   Facing := Right;
-  for s in Split do
+  for s in Rules do
   begin
     if s = 'R' then
     begin
-      Facing := uAOCUtils.TDirection((Ord(Facing)+1) mod 4);
+      Facing := RotateDirection(Facing, 1);
       Continue;
     end
     else if s = 'L' then
     begin
-      Facing := uAOCUtils.TDirection((Ord(Facing)+3) mod 4);
+      Facing := RotateDirection(Facing, 3);
       Continue;
     end;
 
     for i := 1 to StrToInt(s) do
     begin
       NewPoint := PlayerPosition.Clone.ApplyDirection(Facing);
-      if not Grid.ContainsKey(NewPoint) then
+      if not Map.ContainsKey(NewPoint) then
       begin
-        tmpDirection := uAOCUtils.TDirection((Ord(Facing)+2) mod 4);
+        tmpDirection := RotateDirection(Facing, 2);
         NewPoint := PlayerPosition.Clone;
-        while Grid.ContainsKey(NewPoint.Clone.ApplyDirection(tmpDirection)) do
+        while Map.ContainsKey(NewPoint.Clone.ApplyDirection(tmpDirection)) do
           NewPoint := NewPoint.ApplyDirection(tmpDirection);
       end;
 
-      if Grid.TryGetValue(NewPoint, Val) then
+      if Map.TryGetValue(NewPoint, Val) then
       begin
         if Val then
           PlayerPosition := NewPoint
@@ -2509,97 +2529,94 @@ begin
   end;
 
   Result := 1000 * PlayerPosition.Y + 4 * PlayerPosition.X +  Ord(Facing);
-  Grid.Free;
 end;
-
-type
-  rWrapRule = Record
-    X, Y: integer; // Topleft coord of current block
-    CurrentFacing, NewFacing: uAOCUtils.TDirection; // CurrentFacing + NewFacing
-    X_Const, X_AddOffset, X_RemoveOffset: integer; // Const = Hardcoded new coord; AddOffset = toprow + add offset;
-    Y_Const, Y_AddOffset, Y_RemoveOffset: integer; // RemoveOffset = bottomrow + RemoveOffset
-  End;
-
-const WrapRules: array[0..13] of rWrapRule = (
-// Block A
-(x:50; y:0; CurrentFacing:Up; NewFacing:Right; X_Const:1; X_AddOffset:0; X_RemoveOffset:0; Y_Const:0; Y_AddOffset:151; Y_RemoveOffset:0),
-(x:50; y:0; CurrentFacing:Left; NewFacing:Right; X_Const:1; X_AddOffset:0; X_RemoveOffset:0; Y_Const:0; Y_AddOffset:0; Y_RemoveOffset:150),
-// Block B
-(x:100; y:0; CurrentFacing:Up; NewFacing:Up; X_Const:0; X_AddOffset:1; X_RemoveOffset:0; Y_Const:200; Y_AddOffset:0; Y_RemoveOffset:0),
-(x:100; y:0; CurrentFacing:Down; NewFacing:Left; X_Const:100; X_AddOffset:0; X_RemoveOffset:0; Y_Const:0; Y_AddOffset:51; Y_RemoveOffset:0),
-(x:100; y:0; CurrentFacing:Right; NewFacing:Left; X_Const:100; X_AddOffset:0; X_RemoveOffset:0; Y_Const:0; Y_AddOffset:0; Y_RemoveOffset:150),
-// Block C
-(x:50; y:50; CurrentFacing:Left; NewFacing:Down; X_Const:0; X_AddOffset:1; X_RemoveOffset:0; Y_Const:101; Y_AddOffset:0; Y_RemoveOffset:0),
-(x:50; y:50; CurrentFacing:Right; NewFacing:Up; X_Const:0; X_AddOffset:101; X_RemoveOffset:0; Y_Const:50; Y_AddOffset:0; Y_RemoveOffset:0),
-// Block D
-(x:0; y:100; CurrentFacing:Up; NewFacing:Right; X_Const:51; X_AddOffset:0; X_RemoveOffset:0; Y_Const:0; Y_AddOffset:51; Y_RemoveOffset:0),
-(x:0; y:100; CurrentFacing:Left; NewFacing:Right; X_Const:51; X_AddOffset:0; X_RemoveOffset:0; Y_Const:0; Y_AddOffset:0; Y_RemoveOffset:50),
-// Block E
-(x:50; y:100; CurrentFacing:Right; NewFacing:Left; X_Const:150; X_AddOffset:0; X_RemoveOffset:0; Y_Const:0; Y_AddOffset:0; Y_RemoveOffset:50),
-(x:50; y:100; CurrentFacing:Down; NewFacing:Left; X_Const:50; X_AddOffset:0; X_RemoveOffset:0; Y_Const:0; Y_AddOffset:151; Y_RemoveOffset:0),
-// Block F
-(x:0; y:150; CurrentFacing:Left; NewFacing:Down; X_Const:0; X_AddOffset:51; X_RemoveOffset:0; Y_Const:1; Y_AddOffset:0; Y_RemoveOffset:0),
-(x:0; y:150; CurrentFacing:Down; NewFacing:Down; X_Const:0; X_AddOffset:101; X_RemoveOffset:0; Y_Const:1; Y_AddOffset:0; Y_RemoveOffset:0),
-(x:0; y:150; CurrentFacing:Right; NewFacing:up; X_Const:0; X_AddOffset:51; X_RemoveOffset:0; Y_Const:150; Y_AddOffset:0; Y_RemoveOffset:0));
 
 type
   TCubeCoordinate = (TL1, TR1, BL1, BR1, TL2, TR2, BL2, BR2);
   CubeCoordinates = set of TCubeCoordinate;
-Const
-  // First element is the edge of a face, the next 2 or paralel edge's of this line
-  CubeFrame: array[0..11] of array[0..2] of CubeCoordinates = (
-  ([TL1, TR1], [BL1, BR1], [TL2, TR2]),
-  ([BL1, BR1], [TL1, TR1], [BL2, BR2]),
-  ([BL2, BR2], [TL2, TR2], [BL1, BR1]),
-  ([TL2, TR2], [TL1, TR1], [BL2, BR2]),
-
-  ([BL1, TL1], [BR1, TR1], [BL2, TL2]),
-  ([BR1, TR1], [BL1, TL1], [BR2, TR2]),
-  ([BR2, TR2], [BR1, TR1], [BL2, TL2]),
-  ([BL2, TL2], [BR2, TR2], [BL1, TL1]),
-
-  ([TL1, TL2], [TR1, TR2], [BL1, BL2]),
-  ([TR1, TR2], [TL1, TL2], [BR1, BR2]),
-  ([BR1, BR2], [TR1, TR2], [BL1, BL2]),
-  ([BL1, BL2], [BR1, BR2], [TL1, TL2]));
-
-  type Face = Record
+  Face = Record
     x, y: integer;
     Coordinates: Array[uAOCUtils.TDirection] of TCubeCoordinate;
     function AllCoordinats: CubeCoordinates;
     function LineCoordinats(Direction: uAOCUtils.TDirection): CubeCoordinates;
-   // TopLeft, TopRight, BottomLeft, BottemRight: TCubeCoordinate;
+    function GetPoint(Direction: uAOCUtils.TDirection; aCubeSize: integer): TPoint; overload;
+    function GetPoint(Coordinate: TCubeCoordinate; aCubeSize: integer): TPoint; overload;
   end;
 
-
-  function Face.AllCoordinats: CubeCoordinates;
-  var
-    CubeCoordinate: TCubeCoordinate;
-  begin
-    for CubeCoordinate in Coordinates do
-      Include(Result, CubeCoordinate);
+  MapPosition = record
+    Position: TPoint;
+    Facing: uAOCUtils.TDirection;
+    class function Create(aPostion: TPoint; Facing: uAOCUtils.TDirection): MapPosition; static;
+    function ToInteger: integer;
   end;
 
-  function Face.LineCoordinats(Direction: uAOCUtils.TDirection): CubeCoordinates;
-  var
-    Next: uAOCUtils.TDirection;
-  begin
-    Next := uAOCUtils.TDirection((1 + Ord(Direction)) mod 4);
-    Result := [Coordinates[Direction], Coordinates[Next]];
+const
+  CubeFrame: array[0..2] of array[0..3] of CubeCoordinates = (
+  ([TL1, TR1], [BL1, BR1], [BL2, BR2], [TL2, TR2]),
+  ([TL1, TL2], [TR1, TR2], [BR1, BR2], [BL1, BL2]),
+  ([BL1, TL1], [BR1, TR1], [BR2, TR2], [BL2, TL2]));
+
+{ Face }
+
+function Face.AllCoordinats: CubeCoordinates;
+var
+  CubeCoordinate: TCubeCoordinate;
+begin
+  for CubeCoordinate in Coordinates do
+    Include(Result, CubeCoordinate);
+end;
+
+function Face.GetPoint(Direction: uAOCUtils.TDirection; aCubeSize: integer): TPoint;
+begin
+  Result := TPoint.Zero;
+  case Direction of
+    Up:    Result := TPoint.Create(x ,              y );
+    Right: Result := TPoint.Create(x + aCubeSize-1, y );
+    Down:  Result := TPoint.Create(x + aCubeSize-1, y + aCubeSize-1);
+    Left:  Result := TPoint.Create(x ,              y + aCubeSize-1);
   end;
+end;
+
+function Face.GetPoint(Coordinate: TCubeCoordinate; aCubeSize: integer): TPoint;
+var
+  Direction: uAOCUtils.TDirection;
+begin
+  for Direction := Low(uAOCUtils.TDirection) to High(uAOCUtils.TDirection) do
+    if Coordinates[Direction] = Coordinate then
+      Exit(GetPoint(Direction, aCubeSize));
+end;
+
+function Face.LineCoordinats(Direction: uAOCUtils.TDirection): CubeCoordinates;
+var
+  Next: uAOCUtils.TDirection;
+begin
+  Next := RotateDirection(Direction, 1);
+  Result := [Coordinates[Direction], Coordinates[Next]];
+end;
+
+{ MapPosition }
+
+class function MapPosition.Create(aPostion: TPoint; Facing: uAOCUtils.TDirection): MapPosition;
+begin
+  Result.Position := aPostion;
+  Result.Facing := Facing;
+end;
+
+function MapPosition.ToInteger: integer;
+begin
+  Result := Position.x shl 20 + Position.y shl 10 + Ord(Facing);
+end;
 
 function TAdventOfCodeDay22.SolveB: Variant;
-
 var
   Grid: TDictionary<TPosition, boolean>;
   PlayerPosition, NewPoint: TPosition;
-  NewRules: TList<rWrapRule>;
+  GridSize: integer;
+  Portals: TDictionary<integer,MapPosition>;
 
-  procedure BuildRules;
+  procedure BuildPortals;
   var
     Faces: TList<Face>;
-    CurrentFace, NewFace: Face;
-    i: integer;
 
     function ShouldProcessFace(aCurrentFace: Face; OffsetX, OffsetY: integer): Boolean;
     var
@@ -2607,26 +2624,27 @@ var
       Position: TPosition;
       OtherFace: Face;
     begin
-      x := aCurrentFace.X + OffsetX * 50 + 1;
-      y := aCurrentFace.Y + OffsetY * 50 + 1;
+      x := aCurrentFace.X + OffsetX * GridSize;
+      y := aCurrentFace.Y + OffsetY * GridSize;
 
       Position := Position.SetIt(x, y); // Point doesnt exist
 
-      Result := Grid.ContainsKey(Position);
+      Result := Map.ContainsKey(Position);
       if Result then
         for OtherFace in Faces do
-          if InRange(x, OtherFace.X, OtherFace.X+50) and InRange(y, OtherFace.Y, OtherFace.Y+50) then
+          if InRange(x, OtherFace.X, OtherFace.X+GridSize-1) and InRange(y, OtherFace.Y, OtherFace.Y+GridSize-1) then
             Exit(False) // Already processed
     end;
 
     function PointsConnected(points: CubeCoordinates): Boolean;
     var
-      i: integer;
+      i, j: integer;
     begin
       Result := False;
-      for i := 0 to 11 do
-        if CubeFrame[i][0] - points = [] then
-          Exit(True)
+      for i := 0 to 2 do
+        for j := 0 to 3 do
+          if CubeFrame[i][j] - points = [] then
+            Exit(True)
     end;
 
     function FindOpposite(opposite: TCubeCoordinate; Line: CubeCoordinates): TCubeCoordinate;
@@ -2634,71 +2652,70 @@ var
       for result in Line do
         if PointsConnected([opposite, Result]) then
           Exit;
-      Assert(False);
-
-
+      raise Exception.Create('Opposite not found');
     end;
 
     function FindCubeCoordinate(opposite: TCubeCoordinate; Line, Cube: CubeCoordinates): TCubeCoordinate;
     var
-      i: Integer;
+      RotationIndex, LineIndex: integer;
     begin
-      for i := 0 to 11 do
-      begin
-        if CubeFrame[i][0] = line then
-        begin
-          if CubeFrame[i][1] * Cube = [] then
-            Result := FindOpposite(opposite, CubeFrame[i][1])
-          else if CubeFrame[i][2] * Cube = [] then
-            Result := FindOpposite(opposite, CubeFrame[i][2])
-          else
-            Assert(false);
+      for RotationIndex := 0 to 2 do
+        for LineIndex := 0 to 3 do
+          if CubeFrame[RotationIndex][LineIndex] = Line then
+          begin
+            if CubeFrame[RotationIndex][(LineIndex + 3) mod 4] * Cube = [] then
+              Result := FindOpposite(opposite, CubeFrame[RotationIndex][(LineIndex + 3) mod 4])
+            else if CubeFrame[RotationIndex][(LineIndex + 1) mod 4] * Cube = [] then
+              Result := FindOpposite(opposite, CubeFrame[RotationIndex][(LineIndex + 1) mod 4])
+            else
+              raise Exception.Create('Not connected');
+            exit;
+          end;
 
-          exit;
-        end;
-      end;
-
-      Assert(False);
-
+      raise Exception.Create('Not connected');
     end;
 
-    function Fold(OffsetX, OffsetY: integer; aCurrentFace: Face; FoldFrom, FoldTo, CalcTo, CalcOp: Array of  uAOCUtils.TDirection; out aNewFace: Face): Boolean;
+    procedure Fold(OffsetX, OffsetY: integer; aCurrentFace: Face; FoldFrom, FoldTo: Array of  uAOCUtils.TDirection);
     var
-      AllSourceCoordinates, MappedCoordinats: CubeCoordinates;
-      CubeCoordinate: TCubeCoordinate;
+      MappedCoordinats: CubeCoordinates;
+      NewFace: Face;
       i: Integer;
     begin
-      result := ShouldProcessFace(aCurrentFace, OffSetX, OffsetY);
-      if not Result then
+      if not ShouldProcessFace(aCurrentFace, OffSetX, OffsetY) then
         Exit;
 
-      aNewFace.x := aCurrentFace.X + OffsetX * 50;
-      aNewFace.y := aCurrentFace.Y + OffsetY * 50;
+      NewFace.x := aCurrentFace.X + OffsetX * GridSize;
+      NewFace.y := aCurrentFace.Y + OffsetY * GridSize;
 
-      AllSourceCoordinates := [];
       MappedCoordinats := [];
-      for CubeCoordinate in aCurrentFace.Coordinates do
-        Include(AllSourceCoordinates, CubeCoordinate);
 
+      // Process foldline
       for i := 0 to 1 do
       begin
-        aNewFace.Coordinates[FoldTo[i]] := aCurrentFace.Coordinates[FoldFrom[i]];
-        Include(MappedCoordinats, aNewFace.Coordinates[FoldTo[i]]);
+        NewFace.Coordinates[FoldTo[i]] := aCurrentFace.Coordinates[FoldFrom[i]];
+        Include(MappedCoordinats, NewFace.Coordinates[FoldTo[i]]);
       end;
 
+      // Find opposite line
       for i := 0 to 1 do
-        aNewFace.Coordinates[CalcTo[i]] := FindCubeCoordinate(aNewFace.Coordinates[CalcOp[i]], MappedCoordinats, AllSourceCoordinates);
+        NewFace.Coordinates[FoldFrom[i]] := FindCubeCoordinate(NewFace.Coordinates[FoldTo[i]], MappedCoordinats, aCurrentFace.AllCoordinats);
+
+      Faces.Add(NewFace);
     end;
 
   var
-    OffSetX, OffsetY: integer;
-    Direction, NextDirection, OtherFaceDirection, OtherFaceDirection2 : uAOCUtils.TDirection;
-    Rule: rWrapRule;
+    Direction, NextDirection, PortalDirection, PortalDirectionInverted : uAOCUtils.TDirection;
+    CurrentFace, OtherFace: Face;
+    i, CurrentDx, CurrentDy, PortalDx, PortalDy: integer;
+    CurrentStart, CurrentStop, PortalStart, PortalStop: TPoint;
+    Current, Portal: MapPosition;
+    Position: TPosition;
   begin
     Faces := TList<Face>.Create;
 
-    CurrentFace.x := PlayerPosition.x-1;
-    CurrentFace.y := PlayerPosition.y-1;
+    // Create a startingface
+    CurrentFace.x := PlayerPosition.x;
+    CurrentFace.y := PlayerPosition.y;
     CurrentFace.Coordinates[Up] := TL1;
     CurrentFace.Coordinates[Right] := TR1;
     CurrentFace.Coordinates[Down] := BR1;
@@ -2706,98 +2723,73 @@ var
 
     Faces.Add(CurrentFace);
 
+    // Connect the other faces
     for i := 0 to 5 do
     begin
       CurrentFace := Faces[i];
 
       // Look up
-      if Fold(0, -1, CurrentFace, [up, right], [left, down], [up, right], [Left, Down], NewFace) then
-        Faces.Add(NewFace);
+      Fold(0, -1, CurrentFace, [up, right], [left, down]);
 
       // Look down
-      if Fold(0, 1, CurrentFace, [Left, Down], [Up, Right], [Left, Down], [Up, Right], NewFace) then
-        Faces.Add(NewFace);
+      Fold(0, 1, CurrentFace, [Left, Down], [Up, Right]);
 
       // Look right
-      if Fold(1, 0, CurrentFace, [Down, Right], [Left, Up], [Down, Right], [Left, Up], NewFace) then
-        Faces.Add(NewFace);
+      Fold(1, 0, CurrentFace, [Down, Right], [Left, Up]);
 
       // Look Left
-      if Fold(-1, 0, CurrentFace, [up, Left], [Right, down], [up, left], [Right, down], NewFace) then
-        Faces.Add(NewFace);
+      Fold(-1, 0, CurrentFace, [up, Left], [Right, down]);
     end;
 
-    for CurrentFace in Faces do
-    begin
-      WriteLn(CurrentFace.X, ' ', CurrentFace.Y,
-        ' TL: ',  TRttiEnumerationType.GetName(CurrentFace.Coordinates[Up]),
-        ' TR: ',  TRttiEnumerationType.GetName(CurrentFace.Coordinates[Right]),
-        ' BL: ',  TRttiEnumerationType.GetName(CurrentFace.Coordinates[Left]),
-        ' BR: ',  TRttiEnumerationType.GetName(CurrentFace.Coordinates[Down]));
-    end;
-
+    // Create portal rules
     for CurrentFace in Faces do
       for Direction := Low(uAOCUtils.TDirection) to High(uAOCUtils.TDirection) do
       begin
-        NextDirection := uAOCUtils.TDirection((1 + Ord(Direction)) mod 4);
-        for NewFace in Faces do
+        NextDirection := RotateDirection(Direction, 1);
+        for OtherFace in Faces do
         begin
-          if ((NewFace.x = CurrentFace.x) and (NewFace.y = CurrentFace.y)) or not ([CurrentFace.Coordinates[Direction], CurrentFace.Coordinates[NextDirection]] <= NewFace.AllCoordinats) then
+          if ((OtherFace.x = CurrentFace.x) and (OtherFace.y = CurrentFace.y)) or not ([CurrentFace.Coordinates[Direction], CurrentFace.Coordinates[NextDirection]] <= OtherFace.AllCoordinats) then
             Continue;
 
-          for OtherFaceDirection := Low(uAOCUtils.TDirection) to High(uAOCUtils.TDirection) do
-            if CurrentFace.LineCoordinats(Direction) = NewFace.LineCoordinats(OtherFaceDirection) then
+          for PortalDirection := Low(uAOCUtils.TDirection) to High(uAOCUtils.TDirection) do
+            if CurrentFace.LineCoordinats(Direction) = OtherFace.LineCoordinats(PortalDirection) then
             begin
-              OtherFaceDirection2 := uAOCUtils.TDirection((2 + Ord(OtherFaceDirection)) mod 4);
+              PortalDirectionInverted := RotateDirection(PortalDirection, 2);
 
-              Rule.X := CurrentFace.x;
-              Rule.Y := CurrentFace.Y;
-              Rule.CurrentFacing := Direction;
-              Rule.NewFacing := OtherFaceDirection2;
-              Rule.X_Const := 0;
-              Rule.X_AddOffset := 0;
-              Rule.X_RemoveOffset := 0;
-              Rule.Y_Const := 0;
-              Rule.Y_AddOffset := 0;
-              Rule.Y_RemoveOffset := 0;
+              CurrentStart := CurrentFace.GetPoint(Direction, GridSize);
+              CurrentStop := CurrentFace.GetPoint(NextDirection, GridSize);
+              PortalStart := OtherFace.GetPoint(CurrentFace.Coordinates[Direction], GridSize);
+              PortalStop := OtherFace.GetPoint(CurrentFace.Coordinates[NextDirection], GridSize);
 
-              case OtherFaceDirection of
-                Right: Rule.X_Const := NewFace.X + 50;
-                Down:  Rule.Y_Const := NewFace.Y + 50;
-                Left:  Rule.X_Const := NewFace.X + 1;
-                up:    Rule.Y_Const := NewFace.Y + 1;
-              end;
-
-              if OtherFaceDirection = Direction then
+              CurrentDx := Sign(CurrentStop.X - CurrentStart.X);
+              CurrentDy := Sign(CurrentStop.Y - CurrentStart.Y);
+              PortalDx := Sign(PortalStop.X - PortalStart.X);
+              PortalDy := Sign(PortalStop.Y - PortalStart.Y);
+              for i := 0 to GridSize-1 do
               begin
-                if OtherFaceDirection in [Left, Right] then
-                  Rule.Y_RemoveOffset := NewFace.y + 50
-                else
-                  Rule.X_RemoveOffset := NewFace.x + 50;
-              end
-              else
-                if OtherFaceDirection in [Left, Right] then
-                  Rule.Y_AddOffset := NewFace.y + 1
-                else
-                  Rule.X_AddOffset := NewFace.x + 1;
+                Portal.Facing := PortalDirectionInverted;
+                Portal.Position := TPoint.Create(PortalStart.X + i * PortalDx, PortalStart.Y + i * PortalDY);
 
-              NewRules.Add(Rule);
+                Current.Facing := Direction;
+                Current.Position := TPoint.Create(CurrentStart.X + i * CurrentDx, CurrentStart.Y + i * CurrentDy);
+
+                Portals.Add(Current.ToInteger, Portal);
+              end;
             end;
         end;
       end;
   end;
 
 var
-  OffSet, i, x,y: Integer;
+  i, x, y: Integer;
   s: String;
-  Split: TStringDynArray;
   Val: Boolean;
   Facing, OldFacing: uAOCUtils.TDirection;
-  Rule, NewRule: rWrapRule;
+  Position: MapPosition;
 begin
+  Portals := TDictionary<integer, MapPosition>.Create;
   PlayerPosition := PlayerPosition.SetIt(0,0);
   Grid := TDictionary<TPosition, boolean>.Create;
-  NewRules := TList<rWrapRule>.Create;
 
   for y := 0 to FInput.Count -3 do
     for x := 1 to Length(FInput[y]) do
@@ -2811,43 +2803,21 @@ begin
         PlayerPosition := NewPoint;
     end;
 
-  BuildRules;
-
-  for Rule in WrapRules do
-  begin
-    Val := False;
-    for NewRule in NewRules do
-    begin
-      if (Rule.X = NewRule.X) and (Rule.Y = NewRule.Y) and (Rule.CurrentFacing =  NewRule.CurrentFacing) then
-      begin
-        Val := True;
-        Assert(Rule.X_Const = NewRule.X_Const);
-        Assert(Rule.X_AddOffset = NewRule.X_AddOffset);
-        Assert(Rule.X_RemoveOffset = NewRule.X_RemoveOffset);
-        Assert(Rule.Y_Const = NewRule.Y_Const, Rule.Y_Const.ToString + ' <> ' + NewRule.Y_Const.ToString);
-        Assert(Rule.Y_AddOffset = NewRule.Y_AddOffset, Rule.Y_AddOffset.ToString + ' <> ' + NewRule.Y_AddOffset.ToString);
-        Assert(Rule.Y_RemoveOffset = NewRule.Y_RemoveOffset);
-      end;
-    end;
-
-    Assert(Val);
-  end;
-
-  s := FInput[FInput.Count-1];
-  s := s.Replace('L', '|L|', [rfReplaceAll]).Replace('R', '|R|', [rfReplaceAll]);
-  Split := SplitString(s, '|');
+  PlayerPosition := StartingPosition;
+  Gridsize := Round(Sqrt(Map.Count/6));
+  BuildPortals;
 
   Facing := Right;
-  for s in Split do
+  for s in Rules do
   begin
     if s = 'R' then
     begin
-      Facing := uAOCUtils.TDirection((Ord(Facing)+1) mod 4);
+      Facing := RotateDirection(Facing, 1);
       Continue;
     end
     else if s = 'L' then
     begin
-      Facing := uAOCUtils.TDirection((Ord(Facing)+3) mod 4);
+      Facing := RotateDirection(Facing, 3);
       Continue;
     end;
 
@@ -2855,37 +2825,14 @@ begin
     begin
       NewPoint := PlayerPosition.Clone.ApplyDirection(Facing);
       OldFacing := Facing;
-      if not Grid.ContainsKey(NewPoint) then
+      if not Map.ContainsKey(NewPoint) then
       begin
-        Val := False;
-        for Rule in NewRules do
-          if InRange(PlayerPosition.x, Rule.X+1, Rule.X+50) and InRange(PlayerPosition.y, Rule.y+1, Rule.y+50) and (Facing = Rule.CurrentFacing) then
-          begin
-            OffSet := PlayerPosition.x - Rule.X -1;
-            if Facing in [Left, Right] then
-              OffSet := PlayerPosition.y - Rule.Y -1;
-
-            Facing := Rule.NewFacing;
-
-            NewPoint.X := Rule.X_Const;
-            if Rule.X_AddOffset > 0 then
-              NewPoint.X := Rule.X_AddOffset + OffSet
-            else if Rule.X_RemoveOffset > 0 then
-              NewPoint.X := Rule.X_RemoveOffset - OffSet;
-
-            NewPoint.Y := Rule.Y_Const;
-            if Rule.Y_AddOffset > 0 then
-              NewPoint.Y := Rule.Y_AddOffset + OffSet
-            else if Rule.Y_RemoveOffset > 0 then
-              NewPoint.Y := Rule.Y_RemoveOffset - OffSet;
-
-            Val := True;
-            Break;
-          end;
-        Assert(Val);
+        Position := MapPosition.Create(TPoint.Create(PlayerPosition.X, PlayerPosition.Y), Facing);
+        NewPoint := NewPoint.SetIt(Portals[Position.ToInteger].Position.X, Portals[Position.ToInteger].Position.Y) ;
+        Facing := Portals[Position.ToInteger].Facing;
       end;
 
-      if Grid.TryGetValue(NewPoint, Val) then
+      if Map.TryGetValue(NewPoint, Val) then
       begin
         if Val then
           PlayerPosition := NewPoint
@@ -2900,7 +2847,9 @@ begin
   end;
 
   Result := 1000 * PlayerPosition.Y + 4 * PlayerPosition.X +  Ord(Facing);
+
   Grid.Free;
+  Portals.Free;
 end;
 {$ENDREGION}
 {$REGION 'TAdventOfCodeDay23'}
@@ -2931,7 +2880,7 @@ var
     Result := TPoint.Create(aPoint);
     Result.Offset(Offsets[RequierdOffsets[Offset][OffsetIndex]]);
   end;
-    
+
   function GetNeighbors(aPoint: TPoint): integer;
   var
     i: Integer;
@@ -2960,7 +2909,7 @@ var
     Changes.Add(aNew, aOld);
   end;
 
-  function CalcPartA: integer; 
+  function CalcPartA: integer;
   var
     MinX, MaxX, MinY, MaxY: integer;
     Point: TPoint;
@@ -2989,7 +2938,7 @@ var
   SpotFound: boolean;
 begin
   inherited;
-  
+
   Grid := TDictionary<TPoint,Boolean>.Create;
   Blocked := TDictionary<TPoint,Boolean>.Create;
   Changes := TDictionary<TPoint,TPoint>.Create;
@@ -3001,13 +2950,13 @@ begin
 
   Round := 0;
   PartB := 0;
-    
+
   while PartB = 0 do
   begin
     inc(Round);
     Changes.Clear;
     Blocked.Clear;
-    
+
     for point in Grid.Keys do
     begin
       Neighbors := GetNeighbors(point);
@@ -3036,7 +2985,7 @@ begin
       PartB := Round;
       Break;
     end;
-    
+
     for Change in Changes do
     begin
       Grid.Remove(Change.Value);
@@ -3048,7 +2997,7 @@ begin
   end;
 
   Grid.Free;
-  Blocked.Free; 
+  Blocked.Free;
   Changes.Free;
 end;
 
@@ -3059,7 +3008,7 @@ end;
 
 function TAdventOfCodeDay23.SolveB: Variant;
 begin
-  Result := PartB; 
+  Result := PartB;
 end;
 {$ENDREGION}
 {$REGION 'TAdventOfCodeDay24'}
@@ -3185,204 +3134,16 @@ begin
   end;
 end;
 
-
 function TAdventOfCodeDay24.SolveA: Variant;
-//const
-//  DeltaX: Array[0..4] of integer = (1, -1, 0, 0, 0);
-//  DeltaY: Array[0..4] of integer = (0, 0, -1, 1, 0);
-//var
-//  x,y, maxX, MaxY, i, j: Integer;
-//  s: String;
-//  Split: TStringDynArray;
-//  Blizards: TDictionary<TPoint,rBlizard>;
-//  Blizard: rBlizard;
-//  PlayerPosition, ExitPosition, BlizardOrg: TPoint;
-//  c: Char;
-//  PartBComparer : IComparer<VallyWork>;
-//  Queue: PriorityQueue<VallyWork>;
-//  Work, NewWork: VallyWork;
-//  CanMove: boolean;
-//  Seen: TDictionary<string, boolean>;
 begin
   PartA := FindPath(PlayerPosition, ExitPosition, 0);
   Result := PartA;
-
-
-//  Blizards := TDictionary<TPoint,rBlizard>.Create();
-//  Seen := TDictionary<string, boolean>.Create;
-//  maxX := Length(FInput[0])-2;
-//  MaxY := FInput.Count -2;
-//
-//  for y := 0 to FInput.Count -1 do
-//    for x := 0 to Length(FInput[0])-1 do
-//    begin
-//      s := FInput[y][x+1];
-//
-//      if s = '#' then
-//        Continue;
-//      if (y = 0) and (s = '.') then
-//        PlayerPosition := TPoint.Create(x-1,y-1);
-//      if (y = FInput.Count-1) and (s = '.') then
-//        ExitPosition := TPoint.Create(x-1,y-1);
-//      if s = '.' then
-//        Continue;
-//
-//      Blizard.Position := TPoint.Create(x-1,y-1);
-//      Blizard.OffsetX := 0;
-//      Blizard.OffsetY := 0;
-//      case IndexStr(s, ['<', '>', '^', 'v']) of
-//        0: Blizard.OffsetX := -1;
-//        1: Blizard.OffsetX := 1;
-//        2: Blizard.OffsetY := -1;
-//        3: Blizard.OffsetY := 1;
-//      end;
-//      Blizards.Add(Blizard.Position, Blizard);
-//    end;
-//
-//   PartBComparer := TComparer<VallyWork>.Construct(
-//    function(const Left, Right: VallyWork): integer
-//    begin
-//      Result := Sign(Left.TimePassed - Right.TimePassed);
-//    end);
-//
-//  Queue := PriorityQueue<VallyWork>.Create(PartBComparer,PartBComparer);
-//  Work.Position := PlayerPosition;
-//  Work.TimePassed := 0;
-//  Queue.Enqueue(Work);
-//
-//  while Queue.Count > 0 do
-//  begin
-//    Work := Queue.Dequeue;
-//
-////    283 to low
-////    284
-//
-//    s := Format('%d_%d_%d', [Work.Position.X, Work.Position.Y,  Work.TimePassed]);
-//    if Seen.ContainsKey(s) then
-//      Continue;
-//    Seen.Add(s, True);
-//
-// //   Writeln(Work.Position.X, ' ',  Work.Position.Y, ' ',  Work.TimePassed);
-//
-//    for i := 0 to 4 do
-//    begin
-//      NewWork.Position := TPoint.Create(Work.Position);
-//      NewWork.Position.Offset(DeltaX[i], DeltaY[i]);
-//      NewWork.TimePassed := Work.TimePassed + 1;
-//
-//      if NewWork.Position = ExitPosition then
-//        Exit(NewWork.TimePassed);
-//
-//      if (NewWork.Position <> PlayerPosition) and (NewWork.Position <> ExitPosition) then
-//        if (NewWork.Position.X < 0) or (NewWork.Position.Y < 0) or (NewWork.Position.X > MaxX) or (NewWork.Position.Y > MaxY) then
-//          Continue;
-//
-//      CanMove := True;
-//      for j := 0 to 3 do
-//      begin
-//        BlizardOrg := TPoint.Create(NewWork.Position);
-//          BlizardOrg.X := (BlizardOrg.X + (maxX) + DeltaX[j] * (NewWork.TimePassed mod (maxX))) mod(MaxX);
-//
-//          BlizardOrg.Y := (BlizardOrg.Y + (maxY) + DeltaY[j] * (NewWork.TimePassed mod (maxY))) mod(MaxY );
-//
-////
-//        if (NewWork.Position <> PlayerPosition) and (NewWork.Position <> ExitPosition) then
-//        begin
-//
-//        Assert(BlizardOrg.X >= 0);
-//        Assert(BlizardOrg.X <= maxX);
-//        Assert(BlizardOrg.Y >= 0);
-//        Assert(BlizardOrg.Y <= maxY);
-//
-//        end;
-//
-//
-//        if Blizards.TryGetValue(BlizardOrg, Blizard) then
-//        begin
-//          if (Blizard.OffsetX <> 0) and (Blizard.OffsetX + DeltaX[j] = 0) then
-//          begin
-//            CanMove := False;
-//          end;
-//          if (Blizard.OffsetY <> 0) and (Blizard.OffsetY + DeltaY[j] = 0) then
-//          begin
-//            CanMove := False;
-//          end;
-//        end;
-//
-//         if not CanMove then
-//          Break;
-//      end;
-//
-//      if CanMove then
-//        Queue.Enqueue(NewWork);
-//    end;
-//
-//
-//
-//
-//
-//  end;
-
-
 end;
 
 function TAdventOfCodeDay24.SolveB: Variant;
-const
-  DeltaX: Array[0..4] of integer = (1, -1, 0, 0, 0);
-  DeltaY: Array[0..4] of integer = (0, 0, -1, 1, 0);
-//var
-//  maxX, MaxY: Integer;
-//  Blizards: TDictionary<TPoint,rBlizard>;
-//  PlayerPosition, ExitPosition, BlizardOrg: TPoint;
-
-
-
-
-
 var
   TimePassed: integer;
-//  Blizard: rBlizard;
-//  TimePassed: integer;
-//  c: Char;
-//  PartBComparer : IComparer<VallyWork>;
-//  Queue: PriorityQueue<VallyWork>;
-//  Work, NewWork: VallyWork;
-//  CanMove: boolean;
-//  Seen: TDictionary<string, boolean>;
-//
-//  x,y, i, j: integer;
-//  s: string;
 begin
-//  Blizards := TDictionary<TPoint,rBlizard>.Create();
-//  maxX := Length(FInput[0])-2;
-//  MaxY := FInput.Count -2;
-//
-//  for y := 0 to FInput.Count -1 do
-//    for x := 0 to Length(FInput[0])-1 do
-//    begin
-//      s := FInput[y][x+1];
-//
-//      if s = '#' then
-//        Continue;
-//      if (y = 0) and (s = '.') then
-//        PlayerPosition := TPoint.Create(x-1,y-1);
-//      if (y = FInput.Count-1) and (s = '.') then
-//        ExitPosition := TPoint.Create(x-1,y-1);
-//      if s = '.' then
-//        Continue;
-//
-//      Blizard.Position := TPoint.Create(x-1,y-1);
-//      Blizard.OffsetX := 0;
-//      Blizard.OffsetY := 0;
-//      case IndexStr(s, ['<', '>', '^', 'v']) of
-//        0: Blizard.OffsetX := -1;
-//        1: Blizard.OffsetX := 1;
-//        2: Blizard.OffsetY := -1;
-//        3: Blizard.OffsetY := 1;
-//      end;
-//      Blizards.Add(Blizard.Position, Blizard);
-//    end;
-
   TimePassed := PartA;
   TimePassed := FindPath(ExitPosition, PlayerPosition, TimePassed);
   TimePassed := FindPath(PlayerPosition, ExitPosition, TimePassed);
@@ -3461,7 +3222,6 @@ begin
   Result := 'Blender started';
 end;
 {$ENDREGION}
-
 
 initialization
 
