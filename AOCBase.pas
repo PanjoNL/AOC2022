@@ -171,7 +171,7 @@ begin
   DoProcedure(AfterSolve, 'AfterSolve');
 end;
 
-procedure TAdventOfCode.Test(Out SolutionA, SolutionB: String; LoadOverridenTestData: TLoadOverridenTestData);
+procedure TAdventOfCode.Test(Out SolutionA, SolutionB: String; Const LoadOverridenTestData: TLoadOverridenTestData);
 var Dummy: Int64;
 begin
   if Assigned(LoadOverridenTestData) then

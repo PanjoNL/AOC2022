@@ -295,26 +295,24 @@ end;
   TAdventOfCodeDay23 = class(TAdventOfCode)
   private
     PartA, PartB: Int64;
+    FastLookupGrid: Array[0..10000] of Array[0..10000] of boolean;
+    procedure KeyNotify(const Key: TPoint; Action: TCollectionNotification);
+    function FastLookupKey(aPoint: TPoint): Integer;
   protected
     procedure BeforeSolve; override;
     function SolveA: Variant; override;
     function SolveB: Variant; override;
   end;
 
-  rBlizard = record
-    OffsetX, OffsetY: Integer;
-    Position: TPoint;
-  end;
-
   TAdventOfCodeDay24 = class(TAdventOfCode)
   private
     maxX, MaxY, PartA: Integer;
-    Blizards: TDictionary<TPoint,rBlizard>;
-    PlayerPosition, ExitPosition: TPoint;
+    BlizardsX, BlizardsY: array of Boolean;
+    StartPosition, ExitPosition: TPoint;
     function FindPath(aFrom, aTo: TPoint; aTimePassed: integer): integer;
+    function CreateChacheKey(aX, aY, aTime, aMaxTime: integer): integer;
   protected
     procedure BeforeSolve; override;
-    procedure AfterSolve; override;
     function SolveA: Variant; override;
     function SolveB: Variant; override;
   end;
@@ -2865,6 +2863,7 @@ procedure TAdventOfCodeDay23.BeforeSolve;
 var
   Grid, Blocked: TDictionary<TPoint,Boolean>;
   Changes: TDictionary<TPoint,TPoint>;
+  i: Integer;
 
     function SpotIsFree2(CurrentPoint, Offset: TPoint): Boolean;
     var
@@ -2875,10 +2874,16 @@ var
       Result := not Grid.ContainsKey(PointToCheck)
     end;
 
-  function CreatePointWithOffset(aPoint: TPoint; Offset, OffsetIndex: integer): TPoint;
+  function CreatePointWithOffset(aPoint: TPoint; Offset, OffsetIndex: integer): TPoint; overload;
   begin
     Result := TPoint.Create(aPoint);
     Result.Offset(Offsets[RequierdOffsets[Offset][OffsetIndex]]);
+  end;
+
+  function CreatePointWithOffset(aPoint, Offset: TPoint): TPoint; overload;
+  begin
+    Result := TPoint.Create(aPoint);
+    Result.Offset(Offset);
   end;
 
   function GetNeighbors(aPoint: TPoint): integer;
@@ -2940,6 +2945,7 @@ begin
   inherited;
 
   Grid := TDictionary<TPoint,Boolean>.Create;
+  Grid.OnKeyNotify := KeyNotify;
   Blocked := TDictionary<TPoint,Boolean>.Create;
   Changes := TDictionary<TPoint,TPoint>.Create;
 
@@ -2959,6 +2965,9 @@ begin
 
     for point in Grid.Keys do
     begin
+      if not Grid.ContainsKey(point) then
+        Continue;
+
       Neighbors := GetNeighbors(point);
       SpotFound := false;
 
@@ -3001,6 +3010,17 @@ begin
   Changes.Free;
 end;
 
+function TAdventOfCodeDay23.FastLookupKey(aPoint: TPoint): Integer;
+begin
+  Result := (aPoint.X + 5000) * 10000 + aPoint.Y + 5000;
+end;
+
+procedure TAdventOfCodeDay23.KeyNotify(const Key: TPoint; Action: TCollectionNotification);
+begin
+  FastLookupGrid[FastLookupKey(Key)] := Action = cnAdded;
+end;
+
+
 function TAdventOfCodeDay23.SolveA: Variant;
 begin
   Result := PartA;
@@ -3012,19 +3032,39 @@ begin
 end;
 {$ENDREGION}
 {$REGION 'TAdventOfCodeDay24'}
+function TAdventOfCodeDay24.CreateChacheKey(aX, aY, aTime, aMaxTime: integer): integer;
+begin
+  Result := ax * maxY + aY + (aTime mod aMaxTime) * maxX * MaxY;
+end;
+
 procedure TAdventOfCodeDay24.BeforeSolve;
+
+  procedure MarkBlizards(Const aX, aY, aX_Offset, aY_Offset, aMaxTime: Integer; var aBlizards: array of Boolean);
+  var
+    i, X, Y: integer;
+  begin
+    for i := 0 to aMaxTime do
+    begin
+      X := (aX + maxX + i * aX_Offset) mod maxX;
+      Y := (aY + maxY + i * aY_Offset) mod maxY;
+      aBlizards[CreateChacheKey(X, Y, i, aMaxTime)] := True;
+    end;
+  end;
+
 var
   x, y: Integer;
   s: string;
-  Blizard: rBlizard;
 begin
   inherited;
 
-  Blizards := TDictionary<TPoint,rBlizard>.Create();
   maxX := Length(FInput[0])-2;
   MaxY := FInput.Count -2;
 
+  SetLength(BlizardsX, maxX * MaxY * MaxX);
+  SetLength(BlizardsY, maxX * MaxY * MaxY);
+
   for y := 0 to FInput.Count -1 do
+  begin
     for x := 0 to Length(FInput[0])-1 do
     begin
       s := FInput[y][x+1];
@@ -3032,29 +3072,18 @@ begin
       if s = '#' then
         Continue;
       if (y = 0) and (s = '.') then
-        PlayerPosition := TPoint.Create(x-1,y-1);
+        StartPosition := TPoint.Create(x-1,y-1);
       if (y = FInput.Count-1) and (s = '.') then
         ExitPosition := TPoint.Create(x-1,y-1);
-      if s = '.' then
-        Continue;
 
-      Blizard.Position := TPoint.Create(x-1,y-1);
-      Blizard.OffsetX := 0;
-      Blizard.OffsetY := 0;
       case IndexStr(s, ['<', '>', '^', 'v']) of
-        0: Blizard.OffsetX := -1;
-        1: Blizard.OffsetX := 1;
-        2: Blizard.OffsetY := -1;
-        3: Blizard.OffsetY := 1;
+        0: MarkBlizards(x-1, y-1, -1,  0, MaxX, BlizardsX);
+        1: MarkBlizards(x-1, y-1,  1,  0, MaxX, BlizardsX);
+        2: MarkBlizards(x-1, y-1,  0, -1, MaxY, BlizardsY);
+        3: MarkBlizards(x-1, y-1,  0,  1, MaxY, BlizardsY);
       end;
-      Blizards.Add(Blizard.Position, Blizard);
     end;
-end;
-
-procedure TAdventOfCodeDay24.AfterSolve;
-begin
-  inherited;
-  Blizards.Free;
+  end;
 end;
 
 function TAdventOfCodeDay24.FindPath(aFrom, aTo: TPoint; aTimePassed: integer): integer;
@@ -3064,26 +3093,16 @@ type
     Position: TPoint;
   end;
 var
-  i, j: Integer;
-  s: String;
-  Blizard: rBlizard;
-  BlizardOrg: TPoint;
-  Comparer : IComparer<VallyWork>;
-  Queue: PriorityQueue<VallyWork>;
+  i, IndexX, IndexY: Integer;
   Work, NewWork: VallyWork;
-  CanMove: boolean;
-  Seen: TDictionary<string, boolean>;
+  CanMove, IsSpecialPosition: boolean;
+  Seen: TDictionary<integer, boolean>;
+  Queue: Tqueue<VallyWork>;
 begin
   Result := 0;
-  Seen := TDictionary<string, boolean>.Create;
+  Seen := TDictionary<integer, boolean>.Create;
+  Queue := Tqueue<VallyWork>.Create;
   try
-    Comparer := TComparer<VallyWork>.Construct(
-    function(const Left, Right: VallyWork): integer
-    begin
-      Result := Sign(Left.TimePassed - Right.TimePassed);
-    end);
-
-    Queue := PriorityQueue<VallyWork>.Create(Comparer,Comparer);
     Work.Position := aFrom;
     Work.TimePassed := aTimePassed;
     Queue.Enqueue(Work);
@@ -3092,10 +3111,14 @@ begin
     begin
       Work := Queue.Dequeue;
 
-      s := Format('%d_%d_%d', [Work.Position.X, Work.Position.Y,  Work.TimePassed]);
-      if Seen.ContainsKey(s) then
+      i := Work.Position.x shl 20 +  Work.Position.y shl 10 + Work.TimePassed;
+      if Seen.ContainsKey(i)then
         Continue;
-      Seen.Add(s, True);
+
+      if (Queue.Count = 0) or (Queue.Peek.TimePassed <> Work.TimePassed) then
+        Seen.Clear;
+
+      Seen.Add(i, True);
 
       for i := 0 to 4 do
       begin
@@ -3106,23 +3129,19 @@ begin
         if NewWork.Position = aTo then
           Exit(NewWork.TimePassed);
 
-        if (NewWork.Position <> PlayerPosition) and (NewWork.Position <> ExitPosition) then
-          if (NewWork.Position.X < 0) or (NewWork.Position.Y < 0) or (NewWork.Position.X > MaxX) or (NewWork.Position.Y > MaxY) then
+        IsSpecialPosition := (NewWork.Position = StartPosition) or (NewWork.Position = ExitPosition);
+        if not IsSpecialPosition then
+          if (NewWork.Position.X < 0) or (NewWork.Position.Y < 0) or (NewWork.Position.X >= MaxX) or (NewWork.Position.Y >= MaxY) then
             Continue;
 
         CanMove := True;
-        for j := 0 to 3 do
+        if not IsSpecialPosition then
         begin
-          BlizardOrg := TPoint.Create(NewWork.Position);
-          BlizardOrg.X := (BlizardOrg.X + maxX + DeltaX[j] * (NewWork.TimePassed mod maxX)) mod MaxX;
-          BlizardOrg.Y := (BlizardOrg.Y + maxY + DeltaY[j] * (NewWork.TimePassed mod maxY)) mod MaxY;
+          IndexX := CreateChacheKey(NewWork.Position.x, NewWork.Position.y, NewWork.TimePassed, MaxX);
+          IndexY := CreateChacheKey(NewWork.Position.x, NewWork.Position.y, NewWork.TimePassed, MaxY);
 
-          if Blizards.TryGetValue(BlizardOrg, Blizard) then
-            if ((Blizard.OffsetX <> 0) and (Blizard.OffsetX + DeltaX[j] = 0)) or ((Blizard.OffsetY <> 0) and (Blizard.OffsetY + DeltaY[j] = 0)) then
-            begin
-              CanMove := False;
-              break
-            end;
+          if BlizardsX[IndexX] or BlizardsY[IndexY] then
+            CanMove := False;
         end;
 
         if CanMove then
@@ -3130,13 +3149,14 @@ begin
       end;
     end;
   finally
+    Queue.Free;
     Seen.Free;
   end;
 end;
 
 function TAdventOfCodeDay24.SolveA: Variant;
 begin
-  PartA := FindPath(PlayerPosition, ExitPosition, 0);
+  PartA := FindPath(StartPosition, ExitPosition, 0);
   Result := PartA;
 end;
 
@@ -3145,8 +3165,8 @@ var
   TimePassed: integer;
 begin
   TimePassed := PartA;
-  TimePassed := FindPath(ExitPosition, PlayerPosition, TimePassed);
-  TimePassed := FindPath(PlayerPosition, ExitPosition, TimePassed);
+  TimePassed := FindPath(ExitPosition, StartPosition, TimePassed);
+  TimePassed := FindPath(StartPosition, ExitPosition, TimePassed);
   Result := TimePassed
 end;
 {$ENDREGION}
