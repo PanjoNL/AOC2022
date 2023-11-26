@@ -10,7 +10,8 @@ uses
   uAocConfig in 'uAocConfig.pas',
   PriorityQueues in 'PriorityQueue\PriorityQueues.pas',
   PriorityQueues.Detail in 'PriorityQueue\PriorityQueues.Detail.pas',
-  AOCLetterReader in 'AOCLetterReader.pas';
+  AOCLetterReader in 'AOCLetterReader.pas',
+  uAOCTimer in 'uAOCTimer.pas';
 
 begin
   Application.Initialize;

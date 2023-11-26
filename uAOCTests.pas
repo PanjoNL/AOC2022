@@ -4,7 +4,7 @@ interface
 
 uses
   System.SysUtils, Winapi.Windows, system.Classes,
-  uAocUtils, AocSolutions, AOCBase, uAOCConfig;
+  uAocUtils, AocSolutions, AOCBase, uAOCConfig, uAocTimer;
 
 type
   AOCTest = record
@@ -84,29 +84,44 @@ class procedure AOCTests.RunTests(aConfig: TAOCConfig);
         WriteLn(Format('PASS, %s', [DisplayName]))
   end;
 
-Var Test: AOCTest;
-    AdventOfCode: TAdventOfCode;
-    SolutionA, SolutionB: string;
-    StartTickTest, StartTick: Int64;
+Var
+  Test: AOCTest;
+  AdventOfCode: TAdventOfCode;
+  TotalTime, TestTimer: AocTimer;
+  SolutionA, SolutionB: string;
+  Times: TStringList;
+  ElapsedMicroSeconds: Integer;
+  s: string;
 begin
   Writeln('');
-  StartTick := GetTickCount;
-  for Test in AOCTestData do
-  begin
-    Writeln(Format('Running tests for %s', [Test.AOCClass.ClassName]));
 
-    StartTickTest := GetTickCount;
-    AdventOfCode := Test.AOCClass.Create(aConfig);
-    AdventOfCode.Test(SolutionA, SolutionB, Test.LoadOverridenTestData);
-    AdventOfCode.Free;
+  Times := TStringList.Create;
+  try
+    TotalTime := AOCTimer.Start;
+    for Test in AOCTestData do
+    begin
+      Writeln(Format('Running tests for %s', [Test.AOCClass.ClassName]));
 
-    _Check('Part a', Test.ExpectedSolutionA, SolutionA);
-    _Check('Part b', Test.ExpectedSolutionB, SolutionB);
-    Writeln(FormAt('Total ticks %d', [GetTickCount - StartTickTest]));
-    Writeln('');
-  end;
+      AdventOfCode := Test.AOCClass.Create(aConfig);
 
-  Writeln(Format('All tests done in %d ms', [GetTickCount - StartTick]));
+      TestTimer := AOCTimer.Start;
+      AdventOfCode.Test(SolutionA, SolutionB, Test.LoadOverridenTestData);
+      ElapsedMicroSeconds := TestTimer.ElapsedTime;
+      Times.Add(Format('%s -> Time: %d %s', [Test.AOCClass.Classname, ElapsedMicroSeconds, TimeIndicator[MicroSeconds]]));
+      AdventOfCode.Free;
+
+      _Check('Part a', Test.ExpectedSolutionA, SolutionA);
+      _Check('Part b', Test.ExpectedSolutionB, SolutionB);
+      Writeln(FormAt('Total time %d %s', [ElapsedMicroSeconds, TimeIndicator[MicroSeconds]]));
+      Writeln('');
+    end;
+
+    Writeln(Format('All tests done in %d %s', [TotalTime.ElapsedTime(MilliSeconds), TimeIndicator[MilliSeconds]]));
+    for s in Times do
+      WriteLn(s);
+  finally
+    Times.Free;
+  end
 end;
 
 end.

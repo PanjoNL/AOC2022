@@ -5,7 +5,7 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, system.Diagnostics, ClipBrd, system.UITypes,
-  uAocConfig;
+  uAocConfig, uAocTimer;
 
 type
   TProcedureToRun = procedure of object;
@@ -22,7 +22,6 @@ type TAdventOfCode = class(TPersistent)
     procedure BeforeSolve; virtual;
     procedure AfterSolve; virtual;
     function SaveFilePath: String;
-    function QueryPerformanceToMicroSeconds(Const Delta: Int64): Int64;
     procedure WriteTimeToDebug(Const aFunctionName: string; Const aTime: Int64);
   private
     FConfig: TAocConfig;
@@ -30,9 +29,9 @@ type TAdventOfCode = class(TPersistent)
     function MakeFilePath(const aFolder, aFileName: String): string;
     function DayIndex: String;
     procedure DoProcedure(ProcedureToRun: TProcedureToRun; const aDisplayName: String);
-    function DoFunction(FuntionToRun: TFunctionToRun; const aDisplayName: string; Out MicroSecondsTaken: Int64): String;
+    function DoFunction(FuntionToRun: TFunctionToRun; const aDisplayName: string): String;
     procedure LoadInput;
-    procedure InternalSolve(Out SolutionA, SolutionB: string; out TimeA, TimeB: Int64);
+    procedure InternalSolve(Out SolutionA, SolutionB: string);
   public
   { Public declarations }
     procedure Solve;
@@ -81,12 +80,12 @@ end;
 
 function TAdventOfCode.SolveA: Variant;
 begin
-  Result := 'Not implemented'
+  Result := ''
 end;
 
 function TAdventOfCode.SolveB: Variant;
 begin
-  Result := 'Not implemented'
+  Result := ''
 end;
 
 procedure TAdventOfCode.BeforeSolve;
@@ -99,36 +98,27 @@ begin
   // To be overriden
 end;
 
-function TAdventOfCode.QueryPerformanceToMicroSeconds(Const Delta: Int64): Int64;
-Var Frequency, unitsPerMS: Int64;
-begin
-  QueryPerformanceFrequency(Frequency);
-  unitsPerMS := Frequency div 1000000;
-  Result := Delta div unitsPerMS
-end;
-
 procedure TAdventOfCode.WriteTimeToDebug(Const aFunctionName: string; Const aTime: Int64);
 begin
-  Writeln(Format('%s -> Time: %d µs', [aFunctionName, aTime] ));
+  Writeln(Format('%s -> Time: %d %s', [aFunctionName, aTime, TimeIndicator[MicroSeconds]] ));
 end;
 
 procedure TAdventOfCode.DoProcedure(ProcedureToRun: TProcedureToRun; const aDisplayName: String);
-var Start, Stop: Int64;
+var
+  Timer: AOCTimer;
 begin
-  QueryPerformanceCounter(Start);
+  Timer := AOCTimer.Start;
   ProcedureToRun;
-  QueryPerformanceCounter(Stop);
-  WriteTimeToDebug(aDisplayName, QueryPerformanceToMicroSeconds(Stop-Start));
+  WriteTimeToDebug(aDisplayName, Timer.ElapsedTime);
 end;
 
-function TAdventOfCode.DoFunction(FuntionToRun: TFunctionToRun; const aDisplayName: string; Out MicroSecondsTaken: Int64): String;
-var Start, Stop: Int64;
+function TAdventOfCode.DoFunction(FuntionToRun: TFunctionToRun; const aDisplayName: string): String;
+var
+  Timer: AOCTimer;
 begin
-  QueryPerformanceCounter(Start);
+  Timer := AOCTimer.Start;
   Result := VarToStr(FuntionToRun);
-  QueryPerformanceCounter(Stop);
-  MicroSecondsTaken := QueryPerformanceToMicroSeconds(Stop-Start);
-  WriteTimeToDebug(aDisplayName, MicroSecondsTaken);
+  WriteTimeToDebug(aDisplayName, Timer.ElapsedTime);
 end;
 
 procedure TAdventOfCode.LoadInput;
@@ -145,39 +135,36 @@ begin
 end;
 
 procedure TAdventOfCode.Solve;
-var TimeA, TimeB, StartTime, TotalTime: Int64;
-    SolutionA, SolutionB: String;
+
+  procedure _ToClipBoard(Const aPart, aSolution: string);
+  begin
+    if (aSolution <> '') and (MessageDlg(Format('Solution %s: %s' +#10#13 + 'Copy to clipboard?', [aPart, aSolution]), mtInformation, [mbYes, mbNo], 0) = mrYes) then
+      Clipboard.AsText := aSolution;
+  end;
+
+var
+  SolutionA, SolutionB: String;
 begin
-  StartTime := GetTickCount;
-  InternalSolve(SolutionA, SolutionB, TimeA, TimeB);
+  InternalSolve(SolutionA, SolutionB);
 
-  TotalTime := GetTickCount - StartTime;
-
-  if (MessageDlg(Format('Solution A: %s Solved in %d  µs.' +#10#13 +
-                 'Copy to clipboard?', [SolutionA, TimeA]), mtInformation, [mbYes, mbNo], 0) <> Ord(mbNo)) then
-    Clipboard.AsText := SolutionA;
-
-  if (MessageDlg(Format('Solution B: %s Solved in %d µs.' + #10#13 +
-                 'Total execution time: %d ms.' + #10#13 +
-                 'Copy to clipboard?', [SolutionB, TimeB, TotalTime]), mtInformation, [mbYes, mbNo], 0) <> Ord(mbNo)) then
-    Clipboard.AsText := SolutionB;
+  _ToClipBoard('A', SolutionA);
+  _ToClipBoard('B', SolutionB);
 end;
 
-procedure TAdventOfCode.InternalSolve(Out SolutionA, SolutionB: String; out TimeA, TimeB: Int64);
+procedure TAdventOfCode.InternalSolve(Out SolutionA, SolutionB: String);
 begin
   DoProcedure(BeforeSolve, 'BeforeSolve');
-  SolutionA := DoFunction(SolveA, 'SolveA', TimeA);
-  SolutionB := DoFunction(SolveB, 'SolveB', TimeB);
+  SolutionA := DoFunction(SolveA, 'SolveA');
+  SolutionB := DoFunction(SolveB, 'SolveB');
   DoProcedure(AfterSolve, 'AfterSolve');
 end;
 
 procedure TAdventOfCode.Test(Out SolutionA, SolutionB: String; Const LoadOverridenTestData: TLoadOverridenTestData);
-var Dummy: Int64;
 begin
   if Assigned(LoadOverridenTestData) then
     LoadOverridenTestData(FInput);
 
-  InternalSolve(SolutionA, SolutionB, Dummy, Dummy);
+  InternalSolve(SolutionA, SolutionB);
 end;
 
 end.

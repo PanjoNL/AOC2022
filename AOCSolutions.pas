@@ -1,4 +1,4 @@
-        unit AOCSolutions;
+                                                                                               unit AOCSolutions;
 
 interface
 
@@ -210,7 +210,6 @@ end;
     InteresstingValves: TList<rValveData>;
     DistanceMatrix: array of array of Integer;
     PartBData: PriorityQueue<rValveState>;
-
   protected
     procedure BeforeSolve; override;
     procedure AfterSolve; override;
@@ -294,10 +293,8 @@ end;
 
   TAdventOfCodeDay23 = class(TAdventOfCode)
   private
+    FastLookupGrid: Array[-5000..5000] of Array[-5000..5000] of boolean;
     PartA, PartB: Int64;
-    FastLookupGrid: Array[0..10000] of Array[0..10000] of boolean;
-    procedure KeyNotify(const Key: TPoint; Action: TCollectionNotification);
-    function FastLookupKey(aPoint: TPoint): Integer;
   protected
     procedure BeforeSolve; override;
     function SolveA: Variant; override;
@@ -2079,12 +2076,12 @@ var
   MaxRobotsNeeded: TOreArray;
   BestGeodeCount: integer;
 
-  procedure InternalAnalyze3(aTimeLeft: integer; RobotCount, OreCounts: TOreArray);
+  procedure InternalAnalyze(aTimeLeft: integer; RobotCount, OreCounts: TOreArray);
   var
     BestGeodeGues, TimeToSkip, CurrentGeodeCount: integer;
     CanMakeBot, BotsExists: boolean;
     NewRobotCount, NewOreCount: TOreArray;
-    RobotToMake, CurrentOre2: TOreType;
+    RobotToMake, CurrentOre: TOreType;
   begin
     CurrentGeodeCount := OreCounts[geode] + RobotCount[geode] * (aTimeLeft);
 
@@ -2100,21 +2097,22 @@ var
       BotsExists := True;
       TimeToSkip := 0;
 
+      // We dont need more of this robot type
       if RobotCount[RobotToMake] >= MaxRobotsNeeded[RobotToMake] then
         Continue;
 
-      for CurrentOre2 := Low(TOreType) to High(TOreType) do
+      for CurrentOre := Low(TOreType) to High(TOreType) do
       begin
-        if aBlueprint.Costs[RobotToMake][CurrentOre2] = 0 then
+        if aBlueprint.Costs[RobotToMake][CurrentOre] = 0 then
           Continue; // Ore not requierd;
 
-        BotsExists := BotsExists and (RobotCount[CurrentOre2] > 0);
+        BotsExists := BotsExists and (RobotCount[CurrentOre] > 0);
         if not BotsExists then
-          Continue; // One of the requierd bots is not producec
+          Continue; // One of the requierd bots is not yet produced
 
-        CanMakeBot := (OreCounts[CurrentOre2] >= aBlueprint.Costs[RobotToMake][CurrentOre2]);
+        CanMakeBot := (OreCounts[CurrentOre] >= aBlueprint.Costs[RobotToMake][CurrentOre]);
         if not CanMakeBot then
-          TimeToSkip := Max(TimeToSkip, Ceil((aBlueprint.Costs[RobotToMake][CurrentOre2]- OreCounts[CurrentOre2]) / RobotCount[CurrentOre2]  ))
+          TimeToSkip := Max(TimeToSkip, Ceil((aBlueprint.Costs[RobotToMake][CurrentOre]- OreCounts[CurrentOre]) / RobotCount[CurrentOre]  ))
       end;
 
       if not BotsExists then
@@ -2125,10 +2123,10 @@ var
       NewRobotCount[RobotToMake] := NewRobotCount[RobotToMake] + 1;
 
       NewOreCount := OreCounts;
-      for CurrentOre2 := Low(TOreType) to High(TOreType) do
-        NewOreCount[CurrentOre2] := NewOreCount[CurrentOre2] + TimeToSkip*RobotCount[CurrentOre2] - aBlueprint.Costs[RobotToMake][CurrentOre2];
+      for CurrentOre := Low(TOreType) to High(TOreType) do
+        NewOreCount[CurrentOre] := NewOreCount[CurrentOre] + TimeToSkip*RobotCount[CurrentOre] - aBlueprint.Costs[RobotToMake][CurrentOre];
 
-       InternalAnalyze3(aTimeLeft-TimeToSkip, NewRobotCount, NewOreCount);
+       InternalAnalyze(aTimeLeft-TimeToSkip, NewRobotCount, NewOreCount);
     end;
   end;
 
@@ -2151,7 +2149,7 @@ begin
   MaxRobotsNeeded[geode] := MaxInt;
 
   BestGeodeCount := 0;
-  InternalAnalyze3(runtime, RobotCounts, OreCounts);
+  InternalAnalyze(runtime, RobotCounts, OreCounts);
   Result := BestGeodeCount;
 end;
 
@@ -2190,7 +2188,7 @@ end;
 {$ENDREGION}
 {$REGION 'TAdventOfCodeDay20'}
 type tGroveNode = class
-  Prev, Next: TGroveNode;
+  Prev, Next, FastForward: TGroveNode;
   Value: int64;
   constructor Create(aValue: int64); reintroduce;
 end;
@@ -2201,8 +2199,51 @@ begin
 end;
 
 function TAdventOfCodeDay20.DecryptMessage(const DecreptionKey, Rounds: int64): int64;
+const
+  FastStepSize: Integer = 25;
+
+  procedure UpdateFastForwardNodes(aNode: tGroveNode; aSize: integer);
+  var
+    StartNode, FastForwardNode: tGroveNode;
+    i: integer;
+  begin
+    StartNode := aNode;
+    FastForwardNode := aNode;
+
+    // Rewind like a taperecorder
+    for i := 1 to FastStepSize do
+      StartNode := StartNode.Prev;
+
+    StartNode := StartNode.Prev.Prev.Prev;
+    FastForwardNode := FastForwardNode.Prev.Prev.Prev;
+
+    for i := 0 to aSize + 2 do
+    begin
+      StartNode.FastForward := FastForwardNode;
+      StartNode := StartNode.Next;
+      FastForwardNode := FastForwardNode.Next;
+    end
+  end;
+
+  function MoveForward(aGroveNode: TGroveNode; aSteps: integer): TGroveNode;
+  begin
+    Result := aGroveNode;
+
+    while aSteps > FastStepSize do
+    begin
+      Result := Result.FastForward;
+      Dec(aSteps, FastStepsize);
+    end;
+
+    while aSteps > 0 do
+    begin
+      Result := Result.Next;
+      Dec(aSteps);
+    end;
+  end;
+
 var
-  i, Steps, round, x: int64;
+  i, Steps, round: int64;
   Nodes: TObjectDictionary<integer,tGroveNode>;
   PrevNode, CurrentNode, NodeToMove, NewNext, NewPrev, ZeroNode: tGroveNode;
 begin
@@ -2226,8 +2267,12 @@ begin
     Nodes.add(i, CurrentNode);
   end;
 
+  // Link the chain
   Nodes[0].Prev := CurrentNode;
   CurrentNode.Next := Nodes[0];
+
+  // fill fastforwardnodes
+  UpdateFastForwardNodes(ZeroNode, Nodes.Count);
 
   for round := 1 to rounds do
   begin
@@ -2235,33 +2280,31 @@ begin
     begin
       NodeToMove := Nodes[i];
 
+      // Remove from chain
       NodeToMove.Next.Prev := NodeToMove.Prev;
       NodeToMove.Prev.Next := NodeToMove.Next;
 
-      NewNext := NodeToMove.next;
-      NewPrev := NodeToMove.Prev;
+      // Update fastforward pointers
+      UpdateFastForwardNodes(NodeToMove.Next, FastStepSize);
 
+      // Calc steps to take
       Steps := abs(NodeToMove.Value);
       Steps := Steps mod (Nodes.Count-1);
+      if NodeToMove.Value < 0 then
+        Steps := Nodes.Count - steps -1;
 
-      if NodeToMove.Value > 0 then
-      begin
-        for x := 1 to Steps  do
-          NewNext := NewNext.Next;
-        NewPrev := NewNext.Prev;
-      end
-      else
-      begin
-        for x := 1 to Steps do
-          NewPrev := NewPrev.Prev;
-        NewNext := NewPrev.next;
-      end;
+      // Calc new position
+      NewNext := MoveForward(NodeToMove.next, Steps);
+      NewPrev := NewNext.Prev;
 
       // Insert node in chain
       NewPrev.next := NodeToMove;
       NewNext.Prev := NodeToMove;
       NodeToMove.next := NewNext;
       NodeToMove.Prev := NewPrev;
+
+      // Update Fastforward list;
+      UpdateFastForwardNodes(NodeToMove.next, FastStepSize);
     end;
   end;
 
@@ -2270,9 +2313,7 @@ begin
   begin
     for i := 1 to 3 do
     begin
-      for x := 1 to 1000 do
-        CurrentNode := CurrentNode.Next;
-
+      CurrentNode := MoveForward(CurrentNode, 1000);
       Result := result + CurrentNode.Value;
     end;
   end;
@@ -2374,6 +2415,7 @@ begin
         Exit(res);
     end;
   end;
+  known.Free;
 end;
 
 function TAdventOfCodeDay21.SolveB: Variant;
@@ -2550,9 +2592,38 @@ type
 
 const
   CubeFrame: array[0..2] of array[0..3] of CubeCoordinates = (
-  ([TL1, TR1], [BL1, BR1], [BL2, BR2], [TL2, TR2]),
-  ([TL1, TL2], [TR1, TR2], [BR1, BR2], [BL1, BL2]),
-  ([BL1, TL1], [BR1, TR1], [BR2, TR2], [BL2, TL2]));
+  ([TL1, TR1], [BL1, BR1], [BL2, BR2], [TL2, TR2]), // Front view
+  ([TL1, TL2], [TR1, TR2], [BR1, BR2], [BL1, BL2]), // Top view
+  ([BL1, TL1], [BR1, TR1], [BR2, TR2], [BL2, TL2]));// Side view
+{
+The frame
+         TL2--------------------------TR2
+         /.                           /|
+        / .                          / |
+       /  .                         /  |
+      /   .                        /   |
+     /    .                       /    |
+    /     .                      /     |
+   /      .                     /      |
+  /       .                    /       |
+ /        .                   /        |
+TL1--------------------------TR1       |
+|         .                   |        |
+|         .                   |        |
+|         .                   |        |
+|         .                   |        |
+|       <BL2>.................|.......BR2
+|        .                    |        /
+|       .                     |       /
+|      .                      |      /
+|     .                       |     /
+|    .                        |    /
+|   .                         |   /
+|  .                          |  /
+| .                           | /
+|.                            |/
+BL1--------------------------BR1
+}
 
 { Face }
 
@@ -2714,6 +2785,7 @@ var
     // Create a startingface
     CurrentFace.x := PlayerPosition.x;
     CurrentFace.y := PlayerPosition.y;
+    // Map this face to 4 starting Coordinates
     CurrentFace.Coordinates[Up] := TL1;
     CurrentFace.Coordinates[Right] := TR1;
     CurrentFace.Coordinates[Down] := BR1;
@@ -2746,6 +2818,7 @@ var
         NextDirection := RotateDirection(Direction, 1);
         for OtherFace in Faces do
         begin
+          // Otherface = currentFace OR currentface doesnt share an edge with Otherface
           if ((OtherFace.x = CurrentFace.x) and (OtherFace.y = CurrentFace.y)) or not ([CurrentFace.Coordinates[Direction], CurrentFace.Coordinates[NextDirection]] <= OtherFace.AllCoordinats) then
             Continue;
 
@@ -2859,31 +2932,31 @@ const
   RequierdOffsets: array[0..3] of array[0..2] of Integer = (
     (0,1,2), (5,6,7), (0,3,5), (2,4,7));
 
+type
+  RChange = record
+    Index: Integer;
+    OldPoint, NewPoint: TPoint;
+    class function Create(aOldPoint, aNewPoint: TPoint; aIndex: Integer): RChange; static;
+  end;
+
+class function RChange.Create(aOldPoint, aNewPoint: TPoint;
+  aIndex: Integer): RChange;
+begin
+  Result.Index := aIndex;
+  Result.OldPoint := aOldPoint;
+  Result.NewPoint := aNewPoint;
+end;
+
 procedure TAdventOfCodeDay23.BeforeSolve;
 var
-  Grid, Blocked: TDictionary<TPoint,Boolean>;
-  Changes: TDictionary<TPoint,TPoint>;
-  i: Integer;
-
-    function SpotIsFree2(CurrentPoint, Offset: TPoint): Boolean;
-    var
-      PointToCheck: Tpoint;
-    begin
-      PointToCheck := TPoint.Create(CurrentPoint);
-      PointToCheck.Offset(Offset);
-      Result := not Grid.ContainsKey(PointToCheck)
-    end;
+  Grid2: array of TPoint;
+  Grid: TDictionary<TPoint,Boolean>;
+  Changes: TDictionary<TPoint,RChange>;
 
   function CreatePointWithOffset(aPoint: TPoint; Offset, OffsetIndex: integer): TPoint; overload;
   begin
     Result := TPoint.Create(aPoint);
     Result.Offset(Offsets[RequierdOffsets[Offset][OffsetIndex]]);
-  end;
-
-  function CreatePointWithOffset(aPoint, Offset: TPoint): TPoint; overload;
-  begin
-    Result := TPoint.Create(aPoint);
-    Result.Offset(Offset);
   end;
 
   function GetNeighbors(aPoint: TPoint): integer;
@@ -2892,29 +2965,24 @@ var
   begin
     Result := 0;
     for i := 0 to 7 do
-      if not SpotIsFree2(aPoint, Offsets[i]) then
+      if FastLookupGrid[aPoint.x + OffSets[i].x][aPoint.y + OffSets[i].y] then
         Result := Result + 1 shl i;
   end;
 
-  procedure Mark(aOld, aNew: TPoint);
+  procedure Mark(aOld, aNew: TPoint; index: Integer);
   begin
-    // Not moving or already blocked
-    if (aNew = aOld) or Blocked.ContainsKey(aNew) then
-      exit;
-
-    // Found a change to the same spot, mark as blocked and revert other change
+    // Found a change to the same spot, revert other change
     if Changes.ContainsKey(aNew) then
     begin
-      Blocked.Add(aNew, False);
       Changes.Remove(aNew);
       exit;
     end;
 
     // Mark change
-    Changes.Add(aNew, aOld);
+    Changes.Add(aNew, RChange.Create(aOld, aNew, index));
   end;
 
-  function CalcPartA: integer;
+    function CalcPartA: integer;
   var
     MinX, MaxX, MinY, MaxY: integer;
     Point: TPoint;
@@ -2924,7 +2992,7 @@ var
     MaxX := -MaxInt;
     Maxy := -MaxInt;
 
-    for point in Grid.Keys do
+    for point in Grid2 do
     begin
       MaxX := Max(MaxX, point.x);
       MinX := Min(MinX, point.x);
@@ -2937,22 +3005,31 @@ var
 
 var
   Round, OffsetIndex: integer;
-  x, y, Mask, Neighbors: integer;
-  Change: TPair<TPoint,TPoint>;
+  x, y, i, Mask, Neighbors: integer;
+  Change: RChange;
   point: TPoint;
   SpotFound: boolean;
 begin
   inherited;
 
   Grid := TDictionary<TPoint,Boolean>.Create;
-  Grid.OnKeyNotify := KeyNotify;
-  Blocked := TDictionary<TPoint,Boolean>.Create;
-  Changes := TDictionary<TPoint,TPoint>.Create;
+  Changes := TDictionary<TPoint,RChange>.Create;
 
   for y := 0 to FInput.Count-1 do
     for x := 1 to Length(FInput[0]) do
       if FInput[y][x] = '#' then
-         Grid.Add(TPoint.Create(x, y), true);
+      begin
+        Grid.Add(TPoint.Create(x, y), true);
+        FastLookupGrid[x][y] := True;
+      end;
+
+  SetLength(Grid2, Grid.Count - 1);
+  x := 0;
+  for Point in Grid.Keys do
+  begin
+    Grid2[x] := Point;
+    Inc(x);
+  end;
 
   Round := 0;
   PartB := 0;
@@ -2961,32 +3038,27 @@ begin
   begin
     inc(Round);
     Changes.Clear;
-    Blocked.Clear;
 
-    for point in Grid.Keys do
+    for i := 0 to Length(Grid2) do
     begin
-      if not Grid.ContainsKey(point) then
+      point := Grid2[i];
+      Neighbors := GetNeighbors(point);
+
+      if Neighbors = 0 then
         Continue;
 
-      Neighbors := GetNeighbors(point);
-      SpotFound := false;
+      for x := 0 to 3 do
+      begin
+        OffsetIndex := (Round+x-1) mod 4;
+        Mask := (1 shl RequierdOffsets[OffsetIndex][0]) + (1 shl RequierdOffsets[OffsetIndex][1]) + (1 shl RequierdOffsets[OffsetIndex][2]);
+        SpotFound := (Neighbors and Mask) = 0;
 
-      if Neighbors > 0 then
-        for x := 0 to 3 do
+        if SpotFound then
         begin
-          OffsetIndex := (Round+x-1) mod 4;
-          Mask := (1 shl RequierdOffsets[OffsetIndex][0]) + (1 shl RequierdOffsets[OffsetIndex][1]) + (1 shl RequierdOffsets[OffsetIndex][2]);
-          SpotFound := (Neighbors and Mask) = 0;
-
-          if SpotFound then
-          begin
-            Mark(point, CreatePointWithOffset(Point, OffsetIndex, 1));
-            break;
-          end;
+          Mark(point, CreatePointWithOffset(Point, OffsetIndex, 1), i);
+          break;
         end;
-
-       if not SpotFound then
-         Mark(point, point);
+      end;
     end;
 
     if Changes.Count = 0 then
@@ -2995,10 +3067,11 @@ begin
       Break;
     end;
 
-    for Change in Changes do
+    for Change in Changes.Values do
     begin
-      Grid.Remove(Change.Value);
-      Grid.Add(Change.Key, true);
+      FastLookupGrid[Change.NewPoint.x][Change.NewPoint.y]:= True;
+      FastLookupGrid[Change.OldPoint.x][Change.OldPoint.y] := False;
+      Grid2[Change.Index] := Change.NewPoint;
     end;
 
     if Round = 10 then
@@ -3006,20 +3079,8 @@ begin
   end;
 
   Grid.Free;
-  Blocked.Free;
   Changes.Free;
 end;
-
-function TAdventOfCodeDay23.FastLookupKey(aPoint: TPoint): Integer;
-begin
-  Result := (aPoint.X + 5000) * 10000 + aPoint.Y + 5000;
-end;
-
-procedure TAdventOfCodeDay23.KeyNotify(const Key: TPoint; Action: TCollectionNotification);
-begin
-  FastLookupGrid[FastLookupKey(Key)] := Action = cnAdded;
-end;
-
 
 function TAdventOfCodeDay23.SolveA: Variant;
 begin
@@ -3111,7 +3172,7 @@ begin
     begin
       Work := Queue.Dequeue;
 
-      i := Work.Position.x shl 20 +  Work.Position.y shl 10 + Work.TimePassed;
+      i := Work.Position.x shl 20 + Work.Position.y shl 10 + Work.TimePassed;
       if Seen.ContainsKey(i)then
         Continue;
 

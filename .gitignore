@@ -9,3 +9,5 @@
 /__history
 /__recovery
 *.local
+/Win32/Release
+/AdventOfCode2022.identcache
